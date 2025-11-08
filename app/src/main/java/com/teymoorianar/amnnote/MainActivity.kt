@@ -1,7 +1,6 @@
 package com.teymoorianar.amnnote
 
 import android.content.Context
-import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -54,7 +53,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat.getString
 import androidx.core.graphics.scaleMatrix
-import com.teymoorianar.amnnote.ui.note_activity.NoteActivity
+import com.teymoorianar.amnnote.ui.note.NoteActivity
 import com.teymoorianar.amnnote.ui.theme.AmnNoteTheme
 import androidx.compose.material3.MaterialTheme as Material3Theme
 
@@ -150,11 +149,7 @@ fun CenterFab() {
     val context = LocalContext.current
     FloatingActionButton(
         onClick = {
-            val intent = Intent(
-                context,
-                NoteActivity::class.java
-            )
-            context.startActivity(intent)
+            context.startActivity(NoteActivity.newIntent(context))
         },
         shape = CircleShape,
         backgroundColor = Material3Theme.colorScheme.primary,

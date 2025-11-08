@@ -42,7 +42,7 @@ android {
 
 configurations {
     implementation {
-        exclude(group = "org.jetbrains", module = "annotations")
+//        exclude(group = "org.jetbrains", module = "annotations")
     }
 }
 
@@ -60,6 +60,7 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation("androidx.compose.material:material")
 
     // Room dependencies (comment out if not using yet)
     implementation(libs.androidx.room.runtime)

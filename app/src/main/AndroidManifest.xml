@@ -13,6 +13,16 @@
         android:theme="@style/Theme.AmnNote"
         tools:targetApi="31">
         <activity
+            android:name=".ui.note.NoteActivity"
+            android:exported="false"
+            android:label="@string/title_activity_note"
+            android:theme="@style/Theme.AmnNote" />
+        <activity
+            android:name=".ui.note_activity.NoteActivity"
+            android:exported="false"
+            android:label="@string/title_activity_note"
+            android:theme="@style/Theme.AmnNote" />
+        <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"

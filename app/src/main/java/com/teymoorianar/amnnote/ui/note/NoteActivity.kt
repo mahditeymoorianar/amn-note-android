@@ -14,26 +14,40 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material3.Icon
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material.icons.filled.ArrowBackIosNew
+import androidx.compose.material.icons.rounded.ArrowBackIosNew
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -41,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import com.teymoorianar.amnnote.R
 import com.teymoorianar.amnnote.ui.theme.AmnNoteTheme
 import dagger.hilt.android.AndroidEntryPoint
+import androidx.compose.material3.MaterialTheme as Material3Theme
 
 @AndroidEntryPoint
 class NoteActivity : ComponentActivity() {
@@ -59,7 +74,7 @@ class NoteActivity : ComponentActivity() {
 
                 LaunchedEffect(uiState.isSaved, uiState.isDeleted) {
                     if (uiState.isSaved || uiState.isDeleted) {
-                        activity?.setResult(Activity.RESULT_OK)
+                        activity?.setResult(RESULT_OK)
                         activity?.finish()
                     }
                 }
@@ -109,20 +124,95 @@ private fun NoteEditorScreen(
 ) {
     val scrollState = rememberScrollState()
 
+    val newNote =
+        stringResource(R.string.note_editor_title_new)
+    val noteTitle = if (state.noteId == 0L) newNote else state.title
+    var enteringTitle by remember { mutableStateOf(noteTitle) }
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = if (state.noteId == 0L) {
-                            stringResource(id = R.string.note_editor_title_new)
-                        } else {
-                            stringResource(id = R.string.note_editor_title_edit)
-                        }
+                    TextField(
+                        value = state.title,
+                        onValueChange = onTitleChange,
+                        placeholder = {
+                            Text(
+                                noteTitle
+                            )
+                        },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = true,
+                        leadingIcon =
+                            {
+                                IconButton(onClick = {/* TODO */})
+                                {
+                                    Icon(
+                                        imageVector = Icons.Rounded.ArrowBackIosNew,
+                                        contentDescription = "back",
+                                        tint = Material3Theme.colorScheme.primary
+                                    )
+                                }
+                            },
+                        trailingIcon =
+                            {
+                                IconButton(
+                                    onClick = onSaveClick,
+                                    enabled = !state.isLoading,
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Check,
+                                        contentDescription = "back",
+                                        tint = Material3Theme.colorScheme.primary,
+                                        modifier = Modifier
+                                            .size(30.dp)
+                                    )
+                                }
+                            },
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.Transparent,
+                            unfocusedContainerColor = Color.Transparent,
+                            disabledContainerColor = Color(0xFFFFF8E1),
+                            cursorColor = MaterialTheme.colorScheme.primary,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent
+                        )
+
+//                        lineLimits = TextFieldLineLimits.Default
+//                        readOnly = false,
+//                        textStyle = TODO(),
+//                        labelPosition = TODO(),
+//                        label = TODO(),
+//                        prefix = TODO(),
+//                        suffix = TODO(),
+//                        supportingText = TODO(),
+//                        isError = TODO(),
+//                        inputTransformation = TODO(),
+//                        outputTransformation = TODO(),
+//                        keyboardOptions = TODO(),
+//                        onKeyboardAction = TODO(),
+//                        onTextLayout = TODO(),
+//                        scrollState = TODO(),
+//                        shape = TODO(),
+//                        colors = TODO(),
+//                        contentPadding = TODO(),
+//                        interactionSource = TODO(),
                     )
+//                    Text(
+//                        text = if (state.noteId == 0L) {
+//                            stringResource(id = R.string.note_editor_title_new)
+//                        } else {
+//                            stringResource(id = R.string.note_editor_title_edit)
+//                        },
+//                    )
                 },
-                colors = TopAppBarDefaults.topAppBarColors()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(end = 12.dp),
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent
+                )
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
@@ -144,21 +234,21 @@ private fun NoteEditorScreen(
                 }
             }
 
-            OutlinedTextField(
-                value = state.title,
-                onValueChange = onTitleChange,
-                modifier = Modifier.fillMaxWidth(),
-                label = { Text(text = stringResource(id = R.string.note_title_label)) },
-                singleLine = true
-            )
-
-            OutlinedTextField(
+            TextField(
                 value = state.content,
                 onValueChange = onContentChange,
                 modifier = Modifier.fillMaxWidth(),
-                label = { Text(text = stringResource(id = R.string.note_content_label)) },
+//                label = { Text(text = stringResource(id = R.string.note_content_label)) },
+                placeholder = {Text("Write here...")},
                 minLines = 6,
-                maxLines = Int.MAX_VALUE
+                maxLines = Int.MAX_VALUE,
+                colors = TextFieldDefaults.colors(
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedContainerColor = Color.Transparent,
+                    disabledContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                )
             )
 
             Row(
@@ -166,13 +256,6 @@ private fun NoteEditorScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Button(
-                    onClick = onSaveClick,
-                    enabled = !state.isLoading,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(text = stringResource(id = R.string.save))
-                }
 
                 if (state.noteId != 0L) {
                     OutlinedButton(

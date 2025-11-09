@@ -47,6 +47,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -72,8 +74,14 @@ class NoteActivity : ComponentActivity() {
                 val context = LocalContext.current
                 val activity = context as? Activity
 
-                LaunchedEffect(uiState.isSaved, uiState.isDeleted) {
-                    if (uiState.isSaved || uiState.isDeleted) {
+                LaunchedEffect(uiState.isSaved) {
+                    if (uiState.isSaved)
+                        viewModel.switchReadEditMode(
+                            readingMode = true
+                        )
+                }
+                LaunchedEffect(uiState.isDeleted) {
+                    if (uiState.isDeleted) {
                         activity?.setResult(RESULT_OK)
                         activity?.finish()
                     }
@@ -93,7 +101,12 @@ class NoteActivity : ComponentActivity() {
                     onTitleChange = viewModel::onTitleChange,
                     onContentChange = viewModel::onContentChange,
                     onSaveClick = { viewModel.saveNote() },
-                    onDeleteClick = { viewModel.deleteNote() }
+                    onDeleteClick = { viewModel.deleteNote() },
+                    switchEditMode = {
+                        readingMode ->
+                            viewModel.switchReadEditMode(readingMode = readingMode)
+
+                    }
                 )
             }
         }
@@ -120,7 +133,8 @@ private fun NoteEditorScreen(
     onTitleChange: (String) -> Unit,
     onContentChange: (String) -> Unit,
     onSaveClick: () -> Unit,
-    onDeleteClick: () -> Unit
+    onDeleteClick: () -> Unit,
+    switchEditMode: (Boolean) -> Unit
 ) {
     val scrollState = rememberScrollState()
 
@@ -142,7 +156,14 @@ private fun NoteEditorScreen(
                             )
                         },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { focusState ->
+                                val nowFocused = focusState.isFocused
+                                if (nowFocused && state.readingMode) {
+                                    switchEditMode(false) // <-- your custom function
+                                }
+                            },
                         enabled = true,
                         leadingIcon =
                             {
@@ -157,7 +178,19 @@ private fun NoteEditorScreen(
                             },
                         trailingIcon =
                             {
-                                IconButton(
+                                if (state.readingMode)
+                                    IconButton(
+                                        onClick = {}
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Check,
+                                            contentDescription = "back",
+                                            tint = Color.Transparent,
+                                            modifier = Modifier
+                                                .size(30.dp)
+                                        )
+                                    }
+                                else IconButton(
                                     onClick = onSaveClick,
                                     enabled = !state.isLoading,
                                 ) {
@@ -237,7 +270,14 @@ private fun NoteEditorScreen(
             TextField(
                 value = state.content,
                 onValueChange = onContentChange,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged { focusState ->
+                        val nowFocused = focusState.isFocused
+                        if (nowFocused && state.readingMode) {
+                            switchEditMode(false) // <-- your custom function
+                        }
+                    },
 //                label = { Text(text = stringResource(id = R.string.note_content_label)) },
                 placeholder = {Text("Write here...")},
                 minLines = 6,
@@ -248,7 +288,7 @@ private fun NoteEditorScreen(
                     disabledContainerColor = Color.Transparent,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent
-                )
+                ),
             )
 
             Row(

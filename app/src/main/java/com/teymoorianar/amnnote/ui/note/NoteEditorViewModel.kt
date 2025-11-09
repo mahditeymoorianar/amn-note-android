@@ -45,6 +45,20 @@ class NoteEditorViewModel @Inject constructor(
         }
     }
 
+    fun switchReadEditMode(readingMode: Boolean) {
+        _state.update {
+            it.copy(
+                noteId = it.noteId,
+                title = it.title,
+                content = it.content,
+                isEncrypted = it.isEncrypted,
+                createdAt = it.createdAt,
+                updatedAt = it.updatedAt,
+                isLoading = it.isLoading,
+                readingMode = readingMode
+            )
+        }
+    }
     private fun loadNote(noteId: Long) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, errorMessage = null) }
@@ -59,7 +73,8 @@ class NoteEditorViewModel @Inject constructor(
                             isEncrypted = note.isEncrypted,
                             createdAt = note.createdAt,
                             updatedAt = note.updatedAt,
-                            isLoading = false
+                            isLoading = false,
+                            readingMode = it.readingMode
                         )
                     }
                 } else {
@@ -162,5 +177,6 @@ data class NoteEditorState(
     val isLoading: Boolean = false,
     val isSaved: Boolean = false,
     val isDeleted: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val readingMode: Boolean = true
 )

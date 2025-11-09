@@ -1,46 +1,36 @@
 package com.teymoorianar.amnnote
 
-import android.content.Context
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.FiniteAnimationSpec
-import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.scaleIn
-import androidx.compose.foundation.clickable
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.BottomAppBar
 import androidx.compose.material.FabPosition
 import androidx.compose.material.FloatingActionButton
-import androidx.compose.material.FloatingActionButtonElevation
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
-import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Scaffold
 import androidx.compose.material.Text
 import androidx.compose.material.TopAppBar
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.material.TopAppBar
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Create
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,8 +41,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat.getString
-import androidx.core.graphics.scaleMatrix
 import com.teymoorianar.amnnote.ui.note.NoteActivity
 import com.teymoorianar.amnnote.ui.theme.AmnNoteTheme
 import androidx.compose.material3.MaterialTheme as Material3Theme
@@ -61,9 +49,10 @@ import androidx.compose.material3.MaterialTheme as Material3Theme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         setContent {
             AmnNoteTheme {
-                CurvedBottomBarScreen()
+                Screen()
             }
         }
     }
@@ -71,10 +60,11 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CurvedBottomBarScreen() {
+fun Screen() {
     val backgroundColor = Material3Theme.colorScheme.background
 
     Scaffold(
+        contentWindowInsets = WindowInsets.systemBars,
         bottomBar = { CurvedBottomBar() },
         floatingActionButton = { CenterFab() },
         floatingActionButtonPosition = FabPosition.Center,
@@ -96,6 +86,7 @@ fun CurvedBottomBarScreen() {
 @Composable
 fun MainTopAppBar() {
     TopAppBar(
+        modifier = Modifier.statusBarsPadding(),
         title = {
             Text(
                 text = stringResource(R.string.app_name),
@@ -119,6 +110,7 @@ fun MainTopAppBar() {
 @Composable
 fun CurvedBottomBar() {
     BottomAppBar(
+        modifier = Modifier.navigationBarsPadding(),
         cutoutShape = CircleShape,
         backgroundColor = Material3Theme.colorScheme.primary,
         contentColor = Color.White,
@@ -167,5 +159,5 @@ fun CenterFab() {
 @Preview
 @Composable
 fun preview() {
-    CurvedBottomBarScreen()
+    Screen()
 }

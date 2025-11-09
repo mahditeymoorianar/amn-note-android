@@ -3,17 +3,18 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt)
-    id("org.jetbrains.kotlin.kapt")
+    alias(libs.plugins.ksp)
+//    id("org.jetbrains.kotlin.kapt")
 }
 
 android {
     namespace = "com.teymoorianar.amnnote"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.teymoorianar.amnnote"
         minSdk = 29
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
@@ -47,17 +48,18 @@ configurations {
     }
 }
 
-kapt {
-    correctErrorTypes = true
-}
+//kapt {
+//    correctErrorTypes = true
+//}
 
 dependencies {
 
     implementation(libs.hilt.android)
-    kapt(libs.hilt.compiler)
-    kapt(libs.hilt.androidx.compiler)
+    ksp(libs.hilt.compiler)
+    ksp(libs.hilt.androidx.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
-
+    implementation(libs.androidx.compose.material.icons.extended)
+    implementation(libs.javapoet)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -66,12 +68,12 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation("androidx.compose.material:material")
+    implementation(libs.androidx.material)
 
     // Room dependencies (comment out if not using yet)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
-    kapt(libs.androidx.room.compiler)
+    ksp(libs.androidx.room.compiler)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

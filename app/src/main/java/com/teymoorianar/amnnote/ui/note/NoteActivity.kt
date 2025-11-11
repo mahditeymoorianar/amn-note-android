@@ -25,6 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBackIos
 import androidx.compose.material3.Icon
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material.icons.filled.ArrowBackIosNew
@@ -244,9 +245,9 @@ private fun NoteEditorScreen(
                                 IconButton(onClick = {/* TODO */})
                                 {
                                     Icon(
-                                        imageVector = Icons.Rounded.ArrowBackIosNew,
+                                        imageVector = Icons.AutoMirrored.Rounded.ArrowBackIos,
                                         contentDescription = "back",
-                                        tint = Material3Theme.colorScheme.primary
+                                        tint = Material3Theme.colorScheme.primary,
                                     )
                                 }
                             },

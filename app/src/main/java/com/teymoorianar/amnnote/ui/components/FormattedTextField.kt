@@ -59,7 +59,11 @@ fun FormattedTextField(
     inactiveMarkerColor: Color = Color.Transparent,
 ) {
     val typography = MaterialTheme.typography
-    val textColor = colors.textColor(enabled, isError).value
+    val textColor = colors.textColor(
+        enabled = enabled,
+        isError = isError,
+        interactionSource = interactionSource,
+    ).value
 
     val parseResult = remember(value.text) { TextParser.analyze(value.text) }
     val selectionStart = value.selection.min

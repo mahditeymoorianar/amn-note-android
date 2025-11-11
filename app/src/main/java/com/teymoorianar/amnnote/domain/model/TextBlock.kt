@@ -11,7 +11,8 @@ data class TextBlock (
 
 enum class TextStyle {
     BODY, POWER, SUBTITLE, LINK,
-    HEADING_1, HEADING_2, HEADING_3, HEADING_4, HEADING_5
+    HEADING_1, HEADING_2, HEADING_3, HEADING_4, HEADING_5,
+    LIST_ITEM,
 }
 enum class TextDirection {
     LTR, RTL, NULL

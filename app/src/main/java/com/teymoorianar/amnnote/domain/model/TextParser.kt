@@ -2,8 +2,20 @@ package com.teymoorianar.amnnote.domain.model
 
 object TextParser {
 
-    fun parse(input: String): List<TextBlock> {
+    data class ParsedBlock(
+        val block: TextBlock,
+        val contentRange: IntRange?,
+        val markers: List<IntRange>,
+    )
+
+    fun parse(input: String): List<TextBlock> = analyze(input).map { it.block }
+
+    fun analyze(input: String): List<ParsedBlock> {
+        if (input.isEmpty()) return emptyList()
+
         val blocks = mutableListOf<TextBlock>()
+        val ranges = mutableListOf<IntRange?>()
+        val markersPerBlock = mutableListOf<MutableList<IntRange>>()
 
         var direction = TextDirection.NULL
         var bold = false
@@ -15,58 +27,103 @@ object TextParser {
         var isStartOfLine = true
 
         val sb = StringBuilder()
+        var currentStart = -1
+        var currentEnd = -1
+        var currentMarkers = mutableListOf<IntRange>()
+        val pendingOpeningMarkers = mutableListOf<IntRange>()
+
+        fun headingStyleFromLevel(level: Int): TextStyle = when (level.coerceAtMost(5)) {
+            1 -> TextStyle.HEADING_1
+            2 -> TextStyle.HEADING_2
+            3 -> TextStyle.HEADING_3
+            4 -> TextStyle.HEADING_4
+            else -> TextStyle.HEADING_5
+        }
+
+        fun attachMarker(range: IntRange) {
+            if (sb.isEmpty()) {
+                pendingOpeningMarkers.add(range)
+            } else {
+                currentMarkers.add(range)
+            }
+        }
+
+        fun beginBlockIfNeeded(sourceIndex: Int) {
+            if (sb.isEmpty()) {
+                if (pendingOpeningMarkers.isNotEmpty()) {
+                    currentMarkers.addAll(pendingOpeningMarkers)
+                    pendingOpeningMarkers.clear()
+                }
+                currentStart = sourceIndex
+            }
+        }
+
+        fun appendChar(sourceIndex: Int, char: Char) {
+            beginBlockIfNeeded(sourceIndex)
+            sb.append(char)
+            currentEnd = sourceIndex
+        }
 
         fun flush() {
             if (sb.isNotEmpty()) {
                 val styleForBlock = currentStyle
                 val linkForBlock = if (styleForBlock == TextStyle.LINK) currentLink else ""
-                blocks.add(
-                    TextBlock(
-                        text = sb.toString(),
-                        direction = direction,
-                        bold = bold,
-                        italic = italic,
-                        style = styleForBlock,
-                        link = linkForBlock,
-                    )
+                val block = TextBlock(
+                    text = sb.toString(),
+                    direction = direction,
+                    bold = bold,
+                    italic = italic,
+                    style = styleForBlock,
+                    link = linkForBlock,
                 )
+                blocks.add(block)
+                val range = if (currentStart >= 0 && currentEnd >= currentStart) {
+                    IntRange(currentStart, currentEnd)
+                } else {
+                    null
+                }
+                ranges.add(range)
+                markersPerBlock.add(currentMarkers.toMutableList())
                 sb.setLength(0)
+                currentMarkers = mutableListOf()
+                currentStart = -1
+                currentEnd = -1
             }
         }
 
-        fun headingStyleFromLevel(level: Int): TextStyle =
-            when (level.coerceAtMost(5)) {
-                1 -> TextStyle.HEADING_1
-                2 -> TextStyle.HEADING_2
-                3 -> TextStyle.HEADING_3
-                4 -> TextStyle.HEADING_4
-                else -> TextStyle.HEADING_5
+        fun addClosingMarker(range: IntRange) {
+            if (markersPerBlock.isNotEmpty()) {
+                markersPerBlock.last().add(range)
+            } else {
+                pendingOpeningMarkers.add(range)
             }
+        }
+
+        val escapableCharacters = setOf('*', '[', ']', '(', ')', '#', '-', '\\')
 
         var i = 0
         val length = input.length
 
         while (i < length) {
-            // Handle beginning-of-line logic: direction markers + heading markup.
             if (isStartOfLine) {
                 var k = i
 
-                // Apply any number of \rtl / \ltr at the start of the line.
-                lineStartLoop@ while (k < length) {
+                while (k < length) {
                     when {
                         input.startsWith("\\rtl", startIndex = k) -> {
                             direction = TextDirection.RTL
+                            pendingOpeningMarkers.add(IntRange(k, k + 3))
                             k += 4
                         }
                         input.startsWith("\\ltr", startIndex = k) -> {
                             direction = TextDirection.LTR
+                            pendingOpeningMarkers.add(IntRange(k, k + 3))
                             k += 4
                         }
-                        else -> break@lineStartLoop
+                        else -> break
                     }
                 }
 
-                // Detect heading: one or more '#' followed by a single space.
                 var j = k
                 var hashes = 0
                 while (j < length && input[j] == '#') {
@@ -77,14 +134,24 @@ object TextParser {
                 if (hashes > 0 && j < length && input[j] == ' ') {
                     lineStyle = headingStyleFromLevel(hashes)
                     currentStyle = lineStyle
-                    // Skip '#'... and the single space.
+                    pendingOpeningMarkers.add(IntRange(k, j))
                     i = j + 1
-                } else {
-                    lineStyle = TextStyle.BODY
-                    currentStyle = lineStyle
-                    i = k
+                    isStartOfLine = false
+                    continue
                 }
 
+                if (k < length && input[k] == '-' && k + 1 < length && input[k + 1] == ' ') {
+                    lineStyle = TextStyle.LIST_ITEM
+                    currentStyle = lineStyle
+                    pendingOpeningMarkers.add(IntRange(k, k + 1))
+                    i = k + 2
+                    isStartOfLine = false
+                    continue
+                }
+
+                lineStyle = TextStyle.BODY
+                currentStyle = lineStyle
+                i = k
                 isStartOfLine = false
                 if (i >= length) break
             }
@@ -93,76 +160,108 @@ object TextParser {
 
             when (c) {
                 '\n' -> {
-                    // End of line: include the newline, then flush and prepare for next line.
-                    sb.append('\n')
+                    appendChar(i, '\n')
                     flush()
                     i++
                     isStartOfLine = true
                     lineStyle = TextStyle.BODY
                     currentStyle = lineStyle
                     currentLink = ""
+                    pendingOpeningMarkers.clear()
                 }
 
                 '\\' -> {
-                    // Direction markers in the middle of a line.
                     when {
                         input.startsWith("\\rtl", startIndex = i) -> {
                             flush()
                             direction = TextDirection.RTL
+                            attachMarker(IntRange(i, i + 3))
                             i += 4
                         }
                         input.startsWith("\\ltr", startIndex = i) -> {
                             flush()
                             direction = TextDirection.LTR
+                            attachMarker(IntRange(i, i + 3))
                             i += 4
                         }
+                        i + 1 < length && input[i + 1] in escapableCharacters -> {
+                            attachMarker(IntRange(i, i))
+                            appendChar(i + 1, input[i + 1])
+                            i += 2
+                        }
                         else -> {
-                            sb.append(c)
+                            appendChar(i, c)
                             i++
                         }
                     }
                 }
 
                 '[' -> {
-                    // Try to parse a markdown link [label](url)
                     val linkMatch = findLink(input, i)
                     if (linkMatch != null) {
                         flush()
+                        attachMarker(IntRange(i, i))
                         currentStyle = TextStyle.LINK
                         currentLink = linkMatch.url
-                        sb.append(linkMatch.label)
+
+                        var labelIndex = linkMatch.labelStart
+                        while (labelIndex < linkMatch.labelEndExclusive) {
+                            appendChar(labelIndex, input[labelIndex])
+                            labelIndex++
+                        }
+
                         flush()
+                        addClosingMarker(IntRange(linkMatch.closingStart, linkMatch.closingEnd))
+
                         currentStyle = lineStyle
                         currentLink = ""
                         i = linkMatch.endIndex
                     } else {
-                        sb.append(c)
+                        appendChar(i, c)
                         i++
                     }
                 }
 
                 '*' -> {
-                    // Bold / italic toggles: '**' for bold, '*' for italic.
                     if (i + 1 < length && input[i + 1] == '*') {
-                        flush()
+                        val markerRange = IntRange(i, i + 1)
+                        if (bold) {
+                            flush()
+                            addClosingMarker(markerRange)
+                        } else {
+                            attachMarker(markerRange)
+                        }
                         bold = !bold
                         i += 2
                     } else {
-                        flush()
+                        val markerRange = IntRange(i, i)
+                        if (italic) {
+                            flush()
+                            addClosingMarker(markerRange)
+                        } else {
+                            attachMarker(markerRange)
+                        }
                         italic = !italic
                         i++
                     }
                 }
 
                 else -> {
-                    sb.append(c)
+                    appendChar(i, c)
                     i++
                 }
             }
         }
 
         flush()
-        return blocks
+
+        return blocks.indices.map { index ->
+            ParsedBlock(
+                block = blocks[index],
+                contentRange = ranges[index],
+                markers = markersPerBlock[index].toList(),
+            )
+        }
     }
 
     fun encode(blocks: List<TextBlock>): String {
@@ -200,20 +299,17 @@ object TextParser {
             val needItalic = targetItalic != currentItalic
 
             when {
-                // toggle both using ***
                 needBold && needItalic -> {
                     sb.append("***")
                     currentBold = !currentBold
                     currentItalic = !currentItalic
                 }
 
-                // toggle only bold using **
                 needBold -> {
                     sb.append("**")
                     currentBold = !currentBold
                 }
 
-                // toggle only italic using *
                 needItalic -> {
                     sb.append("*")
                     currentItalic = !currentItalic
@@ -230,38 +326,34 @@ object TextParser {
             }
 
             if (startOfLine) {
-                // direction markers come first at the beginning of each line
                 appendDirection(block.direction)
 
-                // then heading markup if this line is a heading
                 val level = headingLevel(block.style)
                 if (level > 0) {
                     repeat(level) { sb.append('#') }
                     sb.append(' ')
+                } else if (block.style == TextStyle.LIST_ITEM) {
+                    sb.append("- ")
                 }
             } else {
-                // direction changes in the middle of a line
                 if (block.direction != currentDirection && block.direction != TextDirection.NULL) {
                     appendDirection(block.direction)
                 }
             }
 
-            // apply inline bold/italic toggles before writing the text
             appendBoldItalic(block.bold, block.italic)
 
-            // content itself
             if (block.style == TextStyle.LINK && block.link.isNotEmpty()) {
                 sb.append('[')
-                sb.append(text)
+                sb.append(escapeContent(text))
                 sb.append(']')
                 sb.append('(')
                 sb.append(block.link)
                 sb.append(')')
             } else {
-                sb.append(text)
+                sb.append(escapeContent(text))
             }
 
-            // handle line breaks
             if (endsWithNewline) {
                 sb.append('\n')
                 startOfLine = true
@@ -276,6 +368,10 @@ object TextParser {
     private data class LinkMatch(
         val label: String,
         val url: String,
+        val labelStart: Int,
+        val labelEndExclusive: Int,
+        val closingStart: Int,
+        val closingEnd: Int,
         val endIndex: Int,
     )
 
@@ -289,12 +385,47 @@ object TextParser {
         val closeParen = text.indexOf(')', startIndex = closeBracket + 2)
         if (closeParen == -1) return null
 
-        val label = text.substring(start + 1, closeBracket)
+        val labelStart = start + 1
+        val labelEndExclusive = closeBracket
         val url = text.substring(closeBracket + 2, closeParen).trim()
 
-        // For simplicity, reject links that span multiple lines.
-        if (label.contains('\n') || url.contains('\n')) return null
+        if (text.substring(labelStart, labelEndExclusive).contains('\n') || url.contains('\n')) {
+            return null
+        }
 
-        return LinkMatch(label = label, url = url, endIndex = closeParen + 1)
+        return LinkMatch(
+            label = text.substring(labelStart, labelEndExclusive),
+            url = url,
+            labelStart = labelStart,
+            labelEndExclusive = labelEndExclusive,
+            closingStart = closeBracket,
+            closingEnd = closeParen,
+            endIndex = closeParen + 1,
+        )
+    }
+
+    private fun escapeContent(text: String): String {
+        if (text.isEmpty()) return text
+
+        val sb = StringBuilder(text.length)
+        var startOfLine = true
+
+        text.forEach { char ->
+            val needsEscape = when (char) {
+                '\\', '*', '[', ']', '(', ')', '{', '}', '`' -> true
+                '#', '-' -> startOfLine
+                else -> false
+            }
+
+            if (needsEscape) {
+                sb.append('\\')
+            }
+
+            sb.append(char)
+
+            startOfLine = char == '\n'
+        }
+
+        return sb.toString()
     }
 }

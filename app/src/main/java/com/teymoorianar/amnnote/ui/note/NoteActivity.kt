@@ -8,9 +8,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -52,8 +54,11 @@ import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.teymoorianar.amnnote.R
 import com.teymoorianar.amnnote.ui.theme.AmnNoteTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -98,8 +103,10 @@ class NoteActivity : ComponentActivity() {
                 NoteEditorScreen(
                     state = uiState,
                     snackbarHostState = snackbarHostState,
-                    onTitleChange = viewModel::onTitleChange,
-                    onContentChange = viewModel::onContentChange,
+                    onTitleChange = { viewModel.onTitleChange(it);
+                        viewModel.switchReadEditMode(readingMode = false)},
+                    onContentChange = { viewModel.onContentChange(it);
+                        viewModel.switchReadEditMode(readingMode = false)},
                     onSaveClick = { viewModel.saveNote() },
                     onDeleteClick = { viewModel.deleteNote() },
                     switchEditMode = {
@@ -152,7 +159,9 @@ private fun NoteEditorScreen(
                         onValueChange = onTitleChange,
                         placeholder = {
                             Text(
-                                noteTitle
+                                noteTitle,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 22.sp
                             )
                         },
                         singleLine = true,
@@ -193,6 +202,7 @@ private fun NoteEditorScreen(
                                 else IconButton(
                                     onClick = onSaveClick,
                                     enabled = !state.isLoading,
+                                    modifier = Modifier.focusable(true)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Rounded.Check,
@@ -210,6 +220,10 @@ private fun NoteEditorScreen(
                             cursorColor = MaterialTheme.colorScheme.primary,
                             focusedIndicatorColor = Color.Transparent,
                             unfocusedIndicatorColor = Color.Transparent
+                        ),
+                        textStyle = TextStyle(
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 22.sp
                         )
 
 //                        lineLimits = TextFieldLineLimits.Default
@@ -272,6 +286,7 @@ private fun NoteEditorScreen(
                 onValueChange = onContentChange,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .fillMaxHeight()
                     .onFocusChanged { focusState ->
                         val nowFocused = focusState.isFocused
                         if (nowFocused && state.readingMode) {
@@ -280,7 +295,7 @@ private fun NoteEditorScreen(
                     },
 //                label = { Text(text = stringResource(id = R.string.note_content_label)) },
                 placeholder = {Text("Write here...")},
-                minLines = 6,
+                minLines = 40,
                 maxLines = Int.MAX_VALUE,
                 colors = TextFieldDefaults.colors(
                     unfocusedContainerColor = Color.Transparent,
@@ -289,6 +304,9 @@ private fun NoteEditorScreen(
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent
                 ),
+                textStyle = TextStyle(
+                    fontSize = 20.sp
+                )
             )
 
             Row(

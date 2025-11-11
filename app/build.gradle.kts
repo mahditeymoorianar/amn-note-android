@@ -69,6 +69,7 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material)
+    implementation(libs.compose.reorderable)
 
     // Room dependencies (comment out if not using yet)
     implementation(libs.androidx.room.runtime)

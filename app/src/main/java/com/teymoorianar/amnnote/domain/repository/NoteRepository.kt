@@ -7,4 +7,5 @@ interface NoteRepository {
     suspend fun getNote(id: Long): Note?
     suspend fun saveNote(note: Note, encrypt: Boolean): Long
     suspend fun deleteNote(noteId: Long)
+    suspend fun reorderNotes(noteIds: List<Long>)
 }

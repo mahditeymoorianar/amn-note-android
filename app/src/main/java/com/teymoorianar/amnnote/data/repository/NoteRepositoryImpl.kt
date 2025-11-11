@@ -45,6 +45,14 @@ class NoteRepositoryImpl @Inject constructor(
         dao.getById(noteId)?.let { dao.delete(it) }
     }
 
+    override suspend fun reorderNotes(noteIds: List<Long>) {
+        if (noteIds.isEmpty()) return
+        val baseTime = System.currentTimeMillis()
+        noteIds.forEachIndexed { index, id ->
+            dao.updateUpdatedAt(id, baseTime - index)
+        }
+    }
+
     private fun NoteEntity.toDomain(cryptoManager: CryptoManager): Note {
         val contentPlain = cryptoManager.decrypt(contentCipher)
         return Note(

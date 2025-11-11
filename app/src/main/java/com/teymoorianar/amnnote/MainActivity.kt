@@ -4,15 +4,21 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.weight
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.BottomAppBar
 import androidx.compose.material.FabPosition
@@ -24,35 +30,53 @@ import androidx.compose.material.Text
 import androidx.compose.material.TopAppBar
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.rounded.Create
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text as Material3Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.teymoorianar.amnnote.domain.model.Note
+import com.teymoorianar.amnnote.ui.main.MainViewModel
 import com.teymoorianar.amnnote.ui.note.NoteActivity
 import com.teymoorianar.amnnote.ui.theme.AmnNoteTheme
+import dagger.hilt.android.AndroidEntryPoint
+import org.burnoutcrew.reorderable.ReorderableItem
+import org.burnoutcrew.reorderable.detectReorderAfterLongPress
+import org.burnoutcrew.reorderable.rememberReorderableLazyListState
+import org.burnoutcrew.reorderable.reorderable
 import androidx.compose.material3.MaterialTheme as Material3Theme
 
-
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             AmnNoteTheme {
-                Screen()
+                val viewModel: MainViewModel = hiltViewModel()
+                val notes by viewModel.notes.collectAsState()
+                Screen(
+                    notes = notes,
+                    onAddNote = { startActivity(NoteActivity.newIntent(this)) },
+                    onNoteClick = { id -> startActivity(NoteActivity.newIntent(this, id)) },
+                    onMove = viewModel::moveNote,
+                    onDragEnd = viewModel::onDragFinished
+                )
             }
         }
     }
@@ -60,25 +84,96 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Screen() {
+fun Screen(
+    notes: List<Note>,
+    onAddNote: () -> Unit,
+    onNoteClick: (Long) -> Unit,
+    onMove: (Int, Int) -> Unit,
+    onDragEnd: () -> Unit
+) {
     val backgroundColor = Material3Theme.colorScheme.background
 
     Scaffold(
         contentWindowInsets = WindowInsets.systemBars,
         bottomBar = { CurvedBottomBar() },
-        floatingActionButton = { CenterFab() },
+        floatingActionButton = { CenterFab(onAddNote) },
         floatingActionButtonPosition = FabPosition.Center,
         isFloatingActionButtonDocked = true,
         backgroundColor = backgroundColor,
         topBar = { MainTopAppBar() }
     ) { innerPadding ->
-        Box(
+        NotesList(
+            notes = notes,
+            onNoteClick = onNoteClick,
+            onMove = onMove,
+            onDragEnd = onDragEnd,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
-            contentAlignment = Alignment.Center
+                .padding(innerPadding)
+        )
+    }
+}
+
+@Composable
+private fun NotesList(
+    notes: List<Note>,
+    onNoteClick: (Long) -> Unit,
+    onMove: (Int, Int) -> Unit,
+    onDragEnd: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val reorderableState = rememberReorderableLazyListState(
+        onMove = { from, to -> onMove(from.index, to.index) },
+        onDragEnd = { _, _ -> onDragEnd() }
+    )
+
+    LazyColumn(
+        modifier = modifier
+            .reorderable(reorderableState)
+            .detectReorderAfterLongPress(reorderableState),
+        state = reorderableState.listState,
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        itemsIndexed(notes, key = { _, note -> note.id }) { _, note ->
+            ReorderableItem(reorderableState, key = note.id) { isDragging ->
+                NoteCard(
+                    note = note,
+                    onClick = { onNoteClick(note.id) },
+                    modifier = Modifier.alpha(if (isDragging) 0.6f else 1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun NoteCard(
+    note: Note,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
         ) {
-            Text(text = "Main content")
+            Material3Text(
+                text = note.title,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Material3Text(
+                text = note.content,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -92,7 +187,7 @@ fun MainTopAppBar() {
                 text = stringResource(R.string.app_name),
                 fontWeight = FontWeight.SemiBold
             )
-                },
+        },
         navigationIcon = {
             IconButton(onClick = { /* TODO: handle navigation click */ }) {
                 Icon(
@@ -123,7 +218,6 @@ fun CurvedBottomBar() {
             )
         }
 
-        // Spacer to keep the center area free for the FAB
         Spacer(modifier = Modifier.weight(0.8f))
 
         IconButton(onClick = { /* TODO: handle Settings click */ }) {
@@ -136,28 +230,48 @@ fun CurvedBottomBar() {
 }
 
 @Composable
-fun CenterFab() {
-    var expanded by remember { mutableStateOf(false) }
-    val context = LocalContext.current
+fun CenterFab(onAddNote: () -> Unit) {
     FloatingActionButton(
-        onClick = {
-            context.startActivity(NoteActivity.newIntent(context))
-        },
+        onClick = onAddNote,
         shape = CircleShape,
         backgroundColor = Material3Theme.colorScheme.primary,
-        contentColor = Color.White,
+        contentColor = Color.White
     ) {
         Icon(
             imageVector = Icons.Rounded.Create,
-            contentDescription = "Add",
-            modifier = Modifier.size(30.dp, 30.dp),
+            contentDescription = "Add"
         )
-
     }
 }
 
 @Preview
 @Composable
-fun preview() {
-    Screen()
+fun PreviewScreen() {
+    val sampleNotes = listOf(
+        Note(
+            id = 1L,
+            title = "Grocery list",
+            content = "Milk, Bread, Eggs, Butter",
+            isEncrypted = false,
+            createdAt = 0L,
+            updatedAt = 0L
+        ),
+        Note(
+            id = 2L,
+            title = "Meeting notes",
+            content = "Discuss quarterly targets and hiring plan.",
+            isEncrypted = false,
+            createdAt = 0L,
+            updatedAt = 0L
+        )
+    )
+    AmnNoteTheme {
+        Screen(
+            notes = sampleNotes,
+            onAddNote = {},
+            onNoteClick = {},
+            onMove = { _, _ -> },
+            onDragEnd = {}
+        )
+    }
 }

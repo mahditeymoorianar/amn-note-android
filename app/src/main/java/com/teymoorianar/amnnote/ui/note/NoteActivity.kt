@@ -5,12 +5,11 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.addCallback
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.compose.foundation.focusable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,29 +21,25 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBackIos
-import androidx.compose.material3.Icon
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.rounded.ArrowBackIosNew
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -56,13 +51,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -70,6 +68,7 @@ import com.teymoorianar.amnnote.R
 import com.teymoorianar.amnnote.ui.theme.AmnNoteTheme
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.compose.material3.MaterialTheme as Material3Theme
+import dev.jeziellago.compose.markdowntext.MarkdownText
 
 @AndroidEntryPoint
 class NoteActivity : ComponentActivity() {
@@ -110,10 +109,8 @@ class NoteActivity : ComponentActivity() {
                 NoteEditorScreen(
                     state = uiState,
                     snackbarHostState = snackbarHostState,
-                    onTitleChange = { viewModel.onTitleChange(it);
-                        viewModel.switchReadEditMode(readingMode = false)},
-                    onContentChange = { viewModel.onContentChange(it);
-                        viewModel.switchReadEditMode(readingMode = false)},
+                    onTitleChange = { viewModel.onTitleChange(it) },
+                    onContentChange = { viewModel.onContentChange(it) },
                     onSaveClick = { viewModel.saveNote() },
                     onDeleteClick = { viewModel.deleteNote() },
                     switchEditMode = {
@@ -140,6 +137,81 @@ class NoteActivity : ComponentActivity() {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MarkdownContentEditor(
+    content: String,
+    onContentChange: (String) -> Unit,
+    readingMode: Boolean,
+    modifier: Modifier = Modifier,
+    onFocusChange: (Boolean) -> Unit
+) {
+    var textFieldValue by remember { mutableStateOf(TextFieldValue(text = content)) }
+    val focusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+
+    LaunchedEffect(content) {
+        if (content != textFieldValue.text) {
+            textFieldValue = textFieldValue.copy(text = content)
+        }
+    }
+
+    LaunchedEffect(readingMode) {
+        if (!readingMode) {
+            focusRequester.requestFocus()
+        } else {
+            focusManager.clearFocus()
+        }
+    }
+
+    if (readingMode) {
+        val placeholderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+        if (content.isBlank()) {
+            Text(
+                text = stringResource(id = R.string.note_content_placeholder),
+                modifier = modifier
+                    .clickable { onFocusChange(true) },
+                style = TextStyle(
+                    fontSize = 20.sp,
+                    color = placeholderColor
+                )
+            )
+        } else {
+            MarkdownText(
+                markdown = content,
+                modifier = modifier
+                    .clickable { onFocusChange(true) },
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 20.sp)
+            )
+        }
+    } else {
+        TextField(
+            value = textFieldValue,
+            onValueChange = { value ->
+                textFieldValue = value
+                onContentChange(value.text)
+            },
+            modifier = modifier
+                .focusRequester(focusRequester)
+                .onFocusChanged { focusState ->
+                    onFocusChange(focusState.isFocused)
+                },
+            placeholder = { Text(text = stringResource(id = R.string.note_content_placeholder)) },
+            minLines = 40,
+            maxLines = Int.MAX_VALUE,
+            colors = TextFieldDefaults.colors(
+                unfocusedContainerColor = Color.Transparent,
+                focusedContainerColor = Color.Transparent,
+                disabledContainerColor = Color.Transparent,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent
+            ),
+            textStyle = TextStyle(
+                fontSize = 20.sp
+            )
+        )
     }
 }
 
@@ -214,10 +286,17 @@ private fun NoteEditorScreen(
         }
     }
 
-    val newNote =
-        stringResource(R.string.note_editor_title_new)
+    val newNote = stringResource(R.string.note_editor_title_new)
     val noteTitle = if (state.noteId == 0L) newNote else state.title
-    var enteringTitle by remember { mutableStateOf(noteTitle) }
+    var titleFocused by remember { mutableStateOf(false) }
+    var contentFocused by remember { mutableStateOf(false) }
+
+    fun applyReadingMode() {
+        val shouldRead = !(titleFocused || contentFocused)
+        if (state.readingMode != shouldRead) {
+            switchEditMode(shouldRead)
+        }
+    }
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
@@ -237,10 +316,8 @@ private fun NoteEditorScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .onFocusChanged { focusState ->
-                                val nowFocused = focusState.isFocused
-                                if (nowFocused && state.readingMode) {
-                                    switchEditMode(false) // <-- your custom function
-                                }
+                                titleFocused = focusState.isFocused
+                                applyReadingMode()
                             },
                         enabled = true,
                         leadingIcon =
@@ -270,8 +347,7 @@ private fun NoteEditorScreen(
                                     }
                                 else IconButton(
                                     onClick = onSaveClick,
-                                    enabled = !state.isLoading,
-                                    modifier = Modifier.focusable(true)
+                                    enabled = !state.isLoading
                                 ) {
                                     Icon(
                                         imageVector = Icons.Rounded.Check,
@@ -350,32 +426,17 @@ private fun NoteEditorScreen(
                 }
             }
 
-            TextField(
-                value = state.content,
-                onValueChange = onContentChange,
+            MarkdownContentEditor(
+                content = state.content,
+                onContentChange = onContentChange,
+                readingMode = state.readingMode,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight()
-                    .onFocusChanged { focusState ->
-                        val nowFocused = focusState.isFocused
-                        if (nowFocused && state.readingMode) {
-                            switchEditMode(false) // <-- your custom function
-                        }
-                    },
-//                label = { Text(text = stringResource(id = R.string.note_content_label)) },
-                placeholder = {Text("Write here...")},
-                minLines = 40,
-                maxLines = Int.MAX_VALUE,
-                colors = TextFieldDefaults.colors(
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedContainerColor = Color.Transparent,
-                    disabledContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
-                ),
-                textStyle = TextStyle(
-                    fontSize = 20.sp
-                )
+                    .fillMaxHeight(),
+                onFocusChange = { focused ->
+                    contentFocused = focused
+                    applyReadingMode()
+                }
             )
 
             Row(

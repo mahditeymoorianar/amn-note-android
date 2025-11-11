@@ -161,14 +161,17 @@ private fun NoteEditorScreen(
     var showDiscardSheet by remember { mutableStateOf(false) }
 
     // 1) intercept back press HERE
-    BackHandler(enabled = true) {
+    val handleBack: () -> Unit = {
         if (state.readingMode) {
-            // nothing edited → just quit
             onForceFinish()
         } else {
-            // edited → ask
             showDiscardSheet = true
         }
+    }
+
+    // Intercept system back press
+    BackHandler(enabled = true) {
+        handleBack()
     }
 
     // 2) sheet itself (Compose only)
@@ -242,7 +245,7 @@ private fun NoteEditorScreen(
                         enabled = true,
                         leadingIcon =
                             {
-                                IconButton(onClick = {/* TODO */})
+                                IconButton(onClick = handleBack)
                                 {
                                     Icon(
                                         imageVector = Icons.AutoMirrored.Rounded.ArrowBackIos,

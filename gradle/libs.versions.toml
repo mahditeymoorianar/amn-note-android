@@ -15,6 +15,7 @@ ksp = "2.2.20-2.0.4"
 javapoet = "1.13.0"
 dataStore = "1.1.7"
 composeReorderable = "0.9.6"
+coil = "2.7.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -42,6 +43,7 @@ androidx-room-compiler = { group = "androidx.room", name = "room-compiler", vers
 androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
 javapoet = { group = "com.squareup", name = "javapoet", version.ref = "javapoet" }
 compose-reorderable = { group = "org.burnoutcrew.composereorderable", name = "reorderable", version.ref = "composeReorderable" }
+coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

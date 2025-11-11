@@ -8,4 +8,5 @@
     <string name="save">Save</string>
     <string name="delete">Delete</string>
     <string name="note_hint_text">Notes are encrypted before being stored.</string>
+    <string name="note_content_placeholder">Write here...</string>
 </resources>

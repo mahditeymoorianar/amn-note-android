@@ -64,9 +64,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.TextRange
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.teymoorianar.amnnote.R
+import com.teymoorianar.amnnote.ui.components.FormattedTextField
 import com.teymoorianar.amnnote.ui.theme.AmnNoteTheme
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.compose.material3.MaterialTheme as Material3Theme
@@ -218,6 +221,16 @@ private fun NoteEditorScreen(
         stringResource(R.string.note_editor_title_new)
     val noteTitle = if (state.noteId == 0L) newNote else state.title
     var enteringTitle by remember { mutableStateOf(noteTitle) }
+    var contentField by remember { mutableStateOf(TextFieldValue(state.content)) }
+
+    LaunchedEffect(state.content) {
+        if (state.content != contentField.text) {
+            contentField = TextFieldValue(
+                text = state.content,
+                selection = TextRange(state.content.length)
+            )
+        }
+    }
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
@@ -350,9 +363,12 @@ private fun NoteEditorScreen(
                 }
             }
 
-            TextField(
-                value = state.content,
-                onValueChange = onContentChange,
+            FormattedTextField(
+                value = contentField,
+                onValueChange = { newValue ->
+                    contentField = newValue
+                    onContentChange(newValue.text)
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .fillMaxHeight()
@@ -363,7 +379,7 @@ private fun NoteEditorScreen(
                         }
                     },
 //                label = { Text(text = stringResource(id = R.string.note_content_label)) },
-                placeholder = {Text("Write here...")},
+                placeholder = { Text("Write here...") },
                 minLines = 40,
                 maxLines = Int.MAX_VALUE,
                 colors = TextFieldDefaults.colors(

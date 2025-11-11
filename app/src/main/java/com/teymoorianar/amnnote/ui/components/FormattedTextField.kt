@@ -10,7 +10,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -60,7 +59,7 @@ fun FormattedTextField(
     inactiveMarkerColor: Color = Color.Transparent,
 ) {
     val typography = MaterialTheme.typography
-    val textColor by colors.textColor(enabled, isError)
+    val textColor = colors.textColor(enabled, isError).value
 
     val parseResult = remember(value.text) { TextParser.analyze(value.text) }
     val selectionStart = value.selection.min

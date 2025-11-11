@@ -70,6 +70,7 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material)
     implementation(libs.compose.reorderable)
+    implementation(libs.coil.compose)
 
     // Room dependencies (comment out if not using yet)
     implementation(libs.androidx.room.runtime)

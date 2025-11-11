@@ -10,19 +10,18 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBackIos
@@ -38,7 +37,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -57,11 +55,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.focus.FocusState
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -156,6 +157,7 @@ private fun NoteEditorScreen(
     onForceFinish: () -> Unit
 ) {
     val scrollState = rememberScrollState()
+    val contentFocusRequester = remember { FocusRequester() }
 
     // controls showing the bottom sheet
     var showDiscardSheet by remember { mutableStateOf(false) }
@@ -218,6 +220,14 @@ private fun NoteEditorScreen(
         stringResource(R.string.note_editor_title_new)
     val noteTitle = if (state.noteId == 0L) newNote else state.title
     var enteringTitle by remember { mutableStateOf(noteTitle) }
+    LaunchedEffect(state.readingMode) {
+        if (!state.readingMode) {
+            contentFocusRequester.requestFocus()
+        }
+    }
+
+    val uriHandler = LocalUriHandler.current
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
@@ -239,7 +249,9 @@ private fun NoteEditorScreen(
                             .onFocusChanged { focusState ->
                                 val nowFocused = focusState.isFocused
                                 if (nowFocused && state.readingMode) {
-                                    switchEditMode(false) // <-- your custom function
+                                    switchEditMode(false)
+                                } else if (!focusState.hasFocus && !state.readingMode) {
+                                    switchEditMode(true)
                                 }
                             },
                         enabled = true,
@@ -350,33 +362,60 @@ private fun NoteEditorScreen(
                 }
             }
 
-            TextField(
-                value = state.content,
-                onValueChange = onContentChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight()
-                    .onFocusChanged { focusState ->
-                        val nowFocused = focusState.isFocused
-                        if (nowFocused && state.readingMode) {
-                            switchEditMode(false) // <-- your custom function
-                        }
-                    },
-//                label = { Text(text = stringResource(id = R.string.note_content_label)) },
-                placeholder = {Text("Write here...")},
-                minLines = 40,
-                maxLines = Int.MAX_VALUE,
-                colors = TextFieldDefaults.colors(
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedContainerColor = Color.Transparent,
-                    disabledContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
-                ),
-                textStyle = TextStyle(
-                    fontSize = 20.sp
+            if (state.readingMode) {
+                val placeholder = stringResource(id = R.string.note_content_placeholder)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp)
+                ) {
+                    if (state.content.isBlank()) {
+                        Text(
+                            text = placeholder,
+                            modifier = Modifier.clickable { switchEditMode(false) },
+                            style = TextStyle(fontSize = 20.sp, fontStyle = FontStyle.Italic),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        MarkdownText(
+                            text = state.content,
+                            modifier = Modifier.fillMaxWidth(),
+                            onLinkClick = { link ->
+                                runCatching { uriHandler.openUri(link) }
+                            },
+                            onTextTap = { switchEditMode(false) }
+                        )
+                    }
+                }
+            } else {
+                TextField(
+                    value = state.content,
+                    onValueChange = onContentChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(contentFocusRequester)
+                        .onFocusChanged { focusState ->
+                            if (focusState.hasFocus && state.readingMode) {
+                                switchEditMode(false)
+                            } else if (!focusState.hasFocus && !state.readingMode) {
+                                switchEditMode(true)
+                            }
+                        },
+                    placeholder = { Text(stringResource(id = R.string.note_content_placeholder)) },
+                    minLines = 12,
+                    maxLines = Int.MAX_VALUE,
+                    colors = TextFieldDefaults.colors(
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    ),
+                    textStyle = TextStyle(
+                        fontSize = 20.sp
+                    )
                 )
-            )
+            }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),

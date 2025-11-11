@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.teymoorianar.amnnote.domain.model.TextDirection
 import com.teymoorianar.amnnote.domain.model.TextParser
+import androidx.compose.material3.MaterialTheme as Material3Theme
 import com.teymoorianar.amnnote.domain.model.TextStyle
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -59,11 +60,11 @@ fun FormattedTextField(
     inactiveMarkerColor: Color = Color.Transparent,
 ) {
     val typography = MaterialTheme.typography
-    val textColor = colors.textColor(
-        enabled = enabled,
-        isError = isError,
-        interactionSource = interactionSource,
-    ).value
+    val baseTextColor = when {
+        !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+        isError -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.onSurface
+    }
 
     val parseResult = remember(value.text) { TextParser.analyze(value.text) }
     val selectionStart = value.selection.min
@@ -86,10 +87,11 @@ fun FormattedTextField(
             typography = typography,
             activeMarkerColor = activeMarkerColor,
             inactiveMarkerColor = inactiveMarkerColor,
+            linkColor = Color(0xFf_Ea_10_Ff)
         )
     }
 
-    val mergedTextStyle = textStyle.merge(ComposeTextStyle(color = textColor))
+    val mergedTextStyle = textStyle.merge(ComposeTextStyle(color = baseTextColor))
 
     BasicTextField(
         value = TextFieldValue(
@@ -161,7 +163,6 @@ private fun findActiveBlock(
     return -1
 }
 
-@Composable
 private fun buildDisplayAnnotatedString(
     text: String,
     parsedBlocks: List<TextParser.ParsedBlock>,
@@ -169,6 +170,7 @@ private fun buildDisplayAnnotatedString(
     typography: androidx.compose.material3.Typography,
     activeMarkerColor: Color,
     inactiveMarkerColor: Color,
+    linkColor: Color,
 ): AnnotatedString {
     val builder = AnnotatedString.Builder()
     builder.append(text)
@@ -178,7 +180,7 @@ private fun buildDisplayAnnotatedString(
         val contentRange = parsed.contentRange
 
         if (contentRange != null && contentRange.first <= contentRange.last) {
-            val baseStyle = spanStyleFor(block.style, typography)
+            val baseStyle = spanStyleFor(block.style, typography, linkColor)
             if (baseStyle != null) {
                 builder.addStyle(baseStyle, contentRange.first, contentRange.last + 1)
             }
@@ -197,24 +199,31 @@ private fun buildDisplayAnnotatedString(
                 TextDirection.NULL -> null
             }
 
-            paragraphDirection?.let {
-                builder.addParagraphStyle(
-                    ParagraphStyle(textDirection = it),
+            if (paragraphDirection != null) {
+                builder.addStyle(
+                    ParagraphStyle(textDirection = paragraphDirection),
                     contentRange.first,
                     contentRange.last + 1,
                 )
             }
 
             if (block.style == TextStyle.LIST_ITEM) {
-                builder.addParagraphStyle(
-                    ParagraphStyle(textIndent = TextIndent(firstLine = 16.sp, restLine = 16.sp)),
+                builder.addStyle(
+                    ParagraphStyle(
+                        textIndent = TextIndent(
+                            firstLine = 16.sp,
+                            restLine = 16.sp,
+                        )
+                    ),
                     contentRange.first,
                     contentRange.last + 1,
                 )
             }
         }
 
-        val markerColor = if (index == activeBlockIndex) activeMarkerColor else inactiveMarkerColor
+        val markerColor =
+            if (index == activeBlockIndex) activeMarkerColor else inactiveMarkerColor
+
         parsed.markers.forEach { range ->
             if (range.first <= range.last && range.last < text.length) {
                 builder.addStyle(
@@ -229,15 +238,15 @@ private fun buildDisplayAnnotatedString(
     return builder.toAnnotatedString()
 }
 
-@Composable
 private fun spanStyleFor(
     style: TextStyle,
     typography: androidx.compose.material3.Typography,
+    linkColor: Color,
 ): SpanStyle? = when (style) {
     TextStyle.BODY, TextStyle.LIST_ITEM -> typography.bodyLarge.toSpanStyle()
     TextStyle.POWER -> typography.titleMedium.toSpanStyle()
     TextStyle.SUBTITLE -> typography.titleSmall.toSpanStyle()
-    TextStyle.LINK -> typography.bodyLarge.toSpanStyle().copy(color = MaterialTheme.colorScheme.primary)
+    TextStyle.LINK -> typography.bodyLarge.toSpanStyle().copy(color = linkColor)
     TextStyle.HEADING_1 -> typography.headlineLarge.toSpanStyle()
     TextStyle.HEADING_2 -> typography.headlineMedium.toSpanStyle()
     TextStyle.HEADING_3 -> typography.headlineSmall.toSpanStyle()

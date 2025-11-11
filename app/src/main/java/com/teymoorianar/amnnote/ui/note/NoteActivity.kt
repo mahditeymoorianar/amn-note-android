@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.addCallback
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -12,11 +14,13 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.verticalScroll
@@ -31,12 +35,14 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -113,6 +119,10 @@ class NoteActivity : ComponentActivity() {
                         readingMode ->
                             viewModel.switchReadEditMode(readingMode = readingMode)
 
+                    },
+                    onForceFinish = {
+                        activity?.setResult(Activity.RESULT_OK)
+                        activity?.finish()
                     }
                 )
             }
@@ -141,9 +151,64 @@ private fun NoteEditorScreen(
     onContentChange: (String) -> Unit,
     onSaveClick: () -> Unit,
     onDeleteClick: () -> Unit,
-    switchEditMode: (Boolean) -> Unit
+    switchEditMode: (Boolean) -> Unit,
+    onForceFinish: () -> Unit
 ) {
     val scrollState = rememberScrollState()
+
+    // controls showing the bottom sheet
+    var showDiscardSheet by remember { mutableStateOf(false) }
+
+    // 1) intercept back press HERE
+    BackHandler(enabled = true) {
+        if (state.readingMode) {
+            // nothing edited → just quit
+            onForceFinish()
+        } else {
+            // edited → ask
+            showDiscardSheet = true
+        }
+    }
+
+    // 2) sheet itself (Compose only)
+    if (showDiscardSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showDiscardSheet = false }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Discard unsaved changes?",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = "If you go back now, your changes will be lost.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = { showDiscardSheet = false }) {
+                        Text("Cancel")
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    TextButton(
+                        onClick = {
+                            showDiscardSheet = false
+                            onForceFinish()
+                        }
+                    ) {
+                        Text("Discard", color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
+        }
+    }
 
     val newNote =
         stringResource(R.string.note_editor_title_new)

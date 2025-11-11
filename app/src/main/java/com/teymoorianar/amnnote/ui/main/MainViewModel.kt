@@ -26,7 +26,7 @@ class MainViewModel @Inject constructor(
         refreshNotes()
     }
 
-    private fun refreshNotes() {
+    fun refreshNotes() {
         viewModelScope.launch {
             _notes.value = noteRepository.getNotes()
         }

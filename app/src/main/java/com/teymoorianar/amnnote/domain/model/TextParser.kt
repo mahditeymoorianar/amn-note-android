@@ -229,6 +229,7 @@ object TextParser {
                             flush()
                             addClosingMarker(markerRange)
                         } else {
+                            flush()
                             attachMarker(markerRange)
                         }
                         bold = !bold
@@ -239,6 +240,7 @@ object TextParser {
                             flush()
                             addClosingMarker(markerRange)
                         } else {
+                            flush()
                             attachMarker(markerRange)
                         }
                         italic = !italic

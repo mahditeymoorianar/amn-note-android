@@ -395,8 +395,12 @@ private fun NoteEditorScreen(
                 FormattedTextField(
                     value = contentField,
                     onValueChange = { newValue ->
-                        contentField = newValue
-                        onContentChange(newValue.text)
+                        val processedValue = handleListAutoFormatting(
+                            oldValue = contentField,
+                            newValue = newValue
+                        )
+                        contentField = processedValue
+                        onContentChange(processedValue.text)
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -566,6 +570,50 @@ private fun ToolChip(
 fun isImeVisible(): Boolean {
     val bottomPx = WindowInsets.ime.getBottom(LocalDensity.current)
     return bottomPx > 0
+}
+
+private val bulletLineRegex = Regex("^([\\t ]*)- (.*)$")
+
+private fun handleListAutoFormatting(
+    oldValue: TextFieldValue,
+    newValue: TextFieldValue
+): TextFieldValue {
+    val newSelection = newValue.selection
+    if (!newSelection.collapsed) return newValue
+
+    if (newValue.text.length != oldValue.text.length + 1) return newValue
+
+    val cursor = newSelection.start
+    if (cursor == 0 || cursor > newValue.text.length) return newValue
+
+    if (newValue.text[cursor - 1] != '\n') return newValue
+
+    val newlineIndex = cursor - 1
+    val lineStart = newValue.text.lastIndexOf('\n', newlineIndex - 1).let { index ->
+        if (index == -1) 0 else index + 1
+    }
+    if (lineStart > newlineIndex) return newValue
+
+    val lineContent = newValue.text.substring(lineStart, newlineIndex)
+    val match = bulletLineRegex.matchEntire(lineContent) ?: return newValue
+
+    val indent = match.groupValues[1]
+    val afterDash = match.groupValues[2]
+
+    return if (afterDash.isBlank()) {
+        val builder = StringBuilder(newValue.text)
+        builder.delete(lineStart, newlineIndex)
+        val updatedText = builder.toString()
+        val newCursor = cursor - (newlineIndex - lineStart)
+        newValue.copy(text = updatedText, selection = TextRange(newCursor))
+    } else {
+        val insertion = indent + "- "
+        val builder = StringBuilder(newValue.text)
+        builder.insert(cursor, insertion)
+        val updatedText = builder.toString()
+        val newCursor = cursor + insertion.length
+        newValue.copy(text = updatedText, selection = TextRange(newCursor))
+    }
 }
 
 private fun writingToolsDemo(): List<ToolItem> = listOf(

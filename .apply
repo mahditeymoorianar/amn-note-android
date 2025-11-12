@@ -1,228 +1,155 @@
  (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
 diff --git a/app/src/main/java/com/teymoorianar/amnnote/ui/note/NoteActivity.kt b/app/src/main/java/com/teymoorianar/amnnote/ui/note/NoteActivity.kt
-index ac2a6551fd930d469cf5e2a8febb754d3ae2b5a2..f32ecf7214d5825b32d8bdd50628fa7789c05a52 100644
+index 397677c10ae1654c0bfe8aee34a855448e97d42b..807d5491adc7176a581709ad196650f3839fd09c 100644
 --- a/app/src/main/java/com/teymoorianar/amnnote/ui/note/NoteActivity.kt
 +++ b/app/src/main/java/com/teymoorianar/amnnote/ui/note/NoteActivity.kt
-@@ -1,47 +1,200 @@
- package com.teymoorianar.amnnote.ui.note
- 
-+import android.app.Activity
-+import android.content.Context
-+import android.content.Intent
- import android.os.Bundle
- import androidx.activity.ComponentActivity
- import androidx.activity.compose.setContent
- import androidx.activity.enableEdgeToEdge
-+import androidx.activity.viewModels
-+import androidx.compose.foundation.layout.Arrangement
-+import androidx.compose.foundation.layout.Column
-+import androidx.compose.foundation.layout.Row
- import androidx.compose.foundation.layout.fillMaxSize
-+import androidx.compose.foundation.layout.fillMaxWidth
- import androidx.compose.foundation.layout.padding
-+import androidx.compose.foundation.rememberScrollState
-+import androidx.compose.foundation.verticalScroll
-+import androidx.compose.material3.Button
-+import androidx.compose.material3.CircularProgressIndicator
-+import androidx.compose.material3.ExperimentalMaterial3Api
-+import androidx.compose.material3.OutlinedButton
-+import androidx.compose.material3.OutlinedTextField
- import androidx.compose.material3.Scaffold
-+import androidx.compose.material3.SnackbarHost
-+import androidx.compose.material3.SnackbarHostState
- import androidx.compose.material3.Text
-+import androidx.compose.material3.TopAppBar
-+import androidx.compose.material3.TopAppBarDefaults
- import androidx.compose.runtime.Composable
-+import androidx.compose.runtime.LaunchedEffect
-+import androidx.compose.runtime.collectAsState
-+import androidx.compose.runtime.getValue
-+import androidx.compose.runtime.remember
-+import androidx.compose.ui.Alignment
- import androidx.compose.ui.Modifier
--import androidx.compose.ui.tooling.preview.Preview
-+import androidx.compose.ui.platform.LocalContext
-+import androidx.compose.ui.res.stringResource
-+import androidx.compose.ui.text.style.TextAlign
-+import androidx.compose.ui.unit.dp
-+import com.teymoorianar.amnnote.R
- import com.teymoorianar.amnnote.ui.theme.AmnNoteTheme
-+import dagger.hilt.android.AndroidEntryPoint
- 
-+@AndroidEntryPoint
- class NoteActivity : ComponentActivity() {
-+
-+    private val viewModel: NoteEditorViewModel by viewModels()
-+
-     override fun onCreate(savedInstanceState: Bundle?) {
-         super.onCreate(savedInstanceState)
-         enableEdgeToEdge()
-         setContent {
-             AmnNoteTheme {
--                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
--                    Greeting(
--                        name = "Android",
--                        modifier = Modifier.padding(innerPadding)
--                    )
-+                val uiState by viewModel.state.collectAsState()
-+                val snackbarHostState = remember { SnackbarHostState() }
-+                val context = LocalContext.current
-+                val activity = context as? Activity
-+
-+                LaunchedEffect(uiState.isSaved, uiState.isDeleted) {
-+                    if (uiState.isSaved || uiState.isDeleted) {
-+                        activity?.setResult(Activity.RESULT_OK)
-+                        activity?.finish()
-+                    }
+@@ -373,52 +373,56 @@ private fun NoteEditorScreen(
+         val imeVisible = isImeVisible()
+         Box(
+             modifier = Modifier
+                 .fillMaxSize()
+                 .padding(innerPadding)
+         ) {
+             Column(
+                 modifier = Modifier
+                     .fillMaxSize()
+                     .padding(16.dp)
+                     .verticalScroll(scrollState),
+                 verticalArrangement = Arrangement.spacedBy(16.dp)
+             ) {
+                 if (state.isLoading) {
+                     Row(
+                         modifier = Modifier.fillMaxWidth(),
+                         horizontalArrangement = Arrangement.Center
+                     ) {
+                         CircularProgressIndicator()
+                     }
                  }
-+
-+                LaunchedEffect(uiState.errorMessage) {
-+                    val message = uiState.errorMessage
-+                    if (!message.isNullOrEmpty()) {
-+                        snackbarHostState.showSnackbar(message)
-+                        viewModel.dismissMessage()
-+                    }
-+                }
-+
-+                NoteEditorScreen(
-+                    state = uiState,
-+                    snackbarHostState = snackbarHostState,
-+                    onTitleChange = viewModel::onTitleChange,
-+                    onContentChange = viewModel::onContentChange,
-+                    onSaveClick = { viewModel.saveNote() },
-+                    onDeleteClick = { viewModel.deleteNote() }
-+                )
+ 
+                 FormattedTextField(
+                     value = contentField,
+                     onValueChange = { newValue ->
+-                        contentField = newValue
+-                        onContentChange(newValue.text)
++                        val processedValue = handleListAutoFormatting(
++                            oldValue = contentField,
++                            newValue = newValue
++                        )
++                        contentField = processedValue
++                        onContentChange(processedValue.text)
+                     },
+                     modifier = Modifier
+                         .fillMaxWidth()
+                         .fillMaxHeight()
+                         .onFocusChanged { focusState ->
+                             val nowFocused = focusState.isFocused
+                             if (nowFocused && state.readingMode) {
+                                 switchEditMode(false) // <-- your custom function
+                             }
+                         },
+ //                label = { Text(text = stringResource(id = R.string.note_content_label)) },
+                     placeholder = { Text("Write here...") },
+                     minLines = 40,
+                     maxLines = Int.MAX_VALUE,
+                     colors = TextFieldDefaults.colors(
+                         unfocusedContainerColor = Color.Transparent,
+                         focusedContainerColor = Color.Transparent,
+                         disabledContainerColor = Color.Transparent,
+                         focusedIndicatorColor = Color.Transparent,
+                         unfocusedIndicatorColor = Color.Transparent
+                     ),
+                     textStyle = TextStyle(
+                         fontSize = 20.sp
+                     )
+                 )
+@@ -546,43 +550,87 @@ private fun ToolChip(
+             modifier = Modifier
+                 .clip(RoundedCornerShape(16.dp))
+                 .padding(start = 2.dp, end = 6.dp, top = 6.dp, bottom = 6.dp)
+         ) {
+             IconButton(onClick = onClick, modifier = Modifier) {
+                 Icon(painter = painterResource(item.iconRes),
+                     contentDescription = item.label,
+                     tint = item.color?: Color(0xFFFFFFFF)
+                 )
              }
+             Text(text = item.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
          }
      }
--}
- 
--@Composable
--fun Greeting(name: String, modifier: Modifier = Modifier) {
--    Text(
--        text = "Hello $name!",
--        modifier = modifier
--    )
-+    companion object {
-+        const val EXTRA_NOTE_ID: String = "extra_note_id"
-+
-+        fun newIntent(context: Context, noteId: Long = 0L): Intent {
-+            return Intent(context, NoteActivity::class.java).apply {
-+                if (noteId != 0L) {
-+                    putExtra(EXTRA_NOTE_ID, noteId)
-+                }
-+            }
-+        }
-+    }
  }
  
--@Preview(showBackground = true)
-+@OptIn(ExperimentalMaterial3Api::class)
+ /**
+  * Helper you can use to know whether the IME is visible.
+  * (No extra dependencies needed; uses insets height in px.)
+  */
  @Composable
--fun GreetingPreview() {
--    AmnNoteTheme {
--        Greeting("Android")
-+private fun NoteEditorScreen(
-+    state: NoteEditorState,
-+    snackbarHostState: SnackbarHostState,
-+    onTitleChange: (String) -> Unit,
-+    onContentChange: (String) -> Unit,
-+    onSaveClick: () -> Unit,
-+    onDeleteClick: () -> Unit
-+) {
-+    val scrollState = rememberScrollState()
+ fun isImeVisible(): Boolean {
+     val bottomPx = WindowInsets.ime.getBottom(LocalDensity.current)
+     return bottomPx > 0
+ }
+ 
++private val bulletLineRegex = Regex("^([\\t ]*)- (.*)$")
 +
-+    Scaffold(
-+        modifier = Modifier.fillMaxSize(),
-+        topBar = {
-+            TopAppBar(
-+                title = {
-+                    Text(
-+                        text = if (state.noteId == 0L) {
-+                            stringResource(id = R.string.note_editor_title_new)
-+                        } else {
-+                            stringResource(id = R.string.note_editor_title_edit)
-+                        }
-+                    )
-+                },
-+                colors = TopAppBarDefaults.topAppBarColors()
-+            )
-+        },
-+        snackbarHost = { SnackbarHost(snackbarHostState) }
-+    ) { innerPadding ->
-+        Column(
-+            modifier = Modifier
-+                .fillMaxSize()
-+                .padding(innerPadding)
-+                .padding(16.dp)
-+                .verticalScroll(scrollState),
-+            verticalArrangement = Arrangement.spacedBy(16.dp)
-+        ) {
-+            if (state.isLoading) {
-+                Row(
-+                    modifier = Modifier.fillMaxWidth(),
-+                    horizontalArrangement = Arrangement.Center
-+                ) {
-+                    CircularProgressIndicator()
-+                }
-+            }
++private fun handleListAutoFormatting(
++    oldValue: TextFieldValue,
++    newValue: TextFieldValue
++): TextFieldValue {
++    val newSelection = newValue.selection
++    if (!newSelection.collapsed) return newValue
 +
-+            OutlinedTextField(
-+                value = state.title,
-+                onValueChange = onTitleChange,
-+                modifier = Modifier.fillMaxWidth(),
-+                label = { Text(text = stringResource(id = R.string.note_title_label)) },
-+                singleLine = true
-+            )
++    if (newValue.text.length != oldValue.text.length + 1) return newValue
 +
-+            OutlinedTextField(
-+                value = state.content,
-+                onValueChange = onContentChange,
-+                modifier = Modifier.fillMaxWidth(),
-+                label = { Text(text = stringResource(id = R.string.note_content_label)) },
-+                minLines = 6,
-+                maxLines = Int.MAX_VALUE
-+            )
++    val cursor = newSelection.start
++    if (cursor == 0 || cursor > newValue.text.length) return newValue
 +
-+            Row(
-+                modifier = Modifier.fillMaxWidth(),
-+                horizontalArrangement = Arrangement.spacedBy(12.dp),
-+                verticalAlignment = Alignment.CenterVertically
-+            ) {
-+                Button(
-+                    onClick = onSaveClick,
-+                    enabled = !state.isLoading,
-+                    modifier = Modifier.weight(1f)
-+                ) {
-+                    Text(text = stringResource(id = R.string.save))
-+                }
++    if (newValue.text[cursor - 1] != '\n') return newValue
 +
-+                if (state.noteId != 0L) {
-+                    OutlinedButton(
-+                        onClick = onDeleteClick,
-+                        enabled = !state.isLoading,
-+                        modifier = Modifier.weight(1f)
-+                    ) {
-+                        Text(text = stringResource(id = R.string.delete))
-+                    }
-+                }
-+            }
++    val newlineIndex = cursor - 1
++    val lineStart = newValue.text.lastIndexOf('\n', newlineIndex - 1).let { index ->
++        if (index == -1) 0 else index + 1
++    }
++    if (lineStart > newlineIndex) return newValue
 +
-+            if (!state.isLoading && state.noteId == 0L) {
-+                Text(
-+                    text = stringResource(id = R.string.note_hint_text),
-+                    modifier = Modifier
-+                        .fillMaxWidth()
-+                        .padding(top = 8.dp),
-+                    textAlign = TextAlign.Center
-+                )
-+            }
-+        }
-     }
--}
-\ No newline at end of file
++    val lineContent = newValue.text.substring(lineStart, newlineIndex)
++    val match = bulletLineRegex.matchEntire(lineContent) ?: return newValue
++
++    val indent = match.groupValues[1]
++    val afterDash = match.groupValues[2]
++
++    return if (afterDash.isBlank()) {
++        val builder = StringBuilder(newValue.text)
++        builder.delete(lineStart, newlineIndex)
++        val updatedText = builder.toString()
++        val newCursor = cursor - (newlineIndex - lineStart)
++        newValue.copy(text = updatedText, selection = TextRange(newCursor))
++    } else {
++        val insertion = indent + "- "
++        val builder = StringBuilder(newValue.text)
++        builder.insert(cursor, insertion)
++        val updatedText = builder.toString()
++        val newCursor = cursor + insertion.length
++        newValue.copy(text = updatedText, selection = TextRange(newCursor))
++    }
 +}
 +
+ private fun writingToolsDemo(): List<ToolItem> = listOf(
+     ToolItem("ltr", R.drawable.rounded_format_textdirection_l_to_r_24, ""),
+     ToolItem("rtl", R.drawable.rounded_format_textdirection_r_to_l_24, ""),
+     ToolItem("bold", R.drawable.rounded_format_bold_24,        ""),
+     ToolItem("italic", R.drawable.rounded_format_italic_24,      ""),
+     ToolItem("heading",        R.drawable.tag_24px,          ""),
+     ToolItem("bullet",    R.drawable.rounded_format_list_bulleted_24, ""),
+     ToolItem("indent-inc",    R.drawable.format_indent_increase_24px, ""),
+     ToolItem("indent-dec",    R.drawable.format_indent_decrease_24px, ""),
+     ToolItem("H1",    R.drawable.format_h1_24px, ""),
+     ToolItem("H2",    R.drawable.format_h2_24px, ""),
+     ToolItem("H3",    R.drawable.format_h3_24px, ""),
+     ToolItem("H4",    R.drawable.format_h4_24px, ""),
+     ToolItem("H5",    R.drawable.format_h5_24px, ""),
+     ToolItem("delete",    R.drawable.delete_24px, "", color = Color(0xFfCf0000)),
+ //    ToolItem("code",      R.drawable.rounded_checkbook_24,        ""), TODO
+ //    ToolItem("quote",     R.drawable.rounded_checkbook_24,       ""), TODO
+ )
  
 EOF
 )

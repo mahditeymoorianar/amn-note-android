@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.ParagraphStyle
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle as ComposeTextStyle
 import androidx.compose.ui.text.font.FontStyle
@@ -28,12 +29,12 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDirection as ComposeTextDirection
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextIndent
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.teymoorianar.amnnote.domain.model.TextDirection
 import com.teymoorianar.amnnote.domain.model.TextParser
-import androidx.compose.material3.MaterialTheme as Material3Theme
 import com.teymoorianar.amnnote.domain.model.TextStyle
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -87,79 +88,17 @@ fun FormattedTextField(
             activeBlockIndex = activeBlockIndex,
             typography = typography,
             activeMarkerColor = activeMarkerColor,
-            linkColor = Color(0xFf_Ea_10_Ff),
+            linkColor = Color(0xFFEA10FF),
         )
     }
 
-//    val annotatedString = remember(
-//        value.text,
-//        parseResult,
-//        activeBlockIndex,
-//        typography,
-//        activeMarkerColor,
-//        inactiveMarkerColor,
-//    ) {
-//        buildDisplayAnnotatedString(
-//            text = value.text,
-//            parsedBlocks = parseResult,
-//            activeBlockIndex = activeBlockIndex,
-//            typography = typography,
-//            activeMarkerColor = activeMarkerColor,
-//            inactiveMarkerColor = inactiveMarkerColor,
-//            linkColor = Color(0xFf_Ea_10_Ff)
-//        )
-//    }
-
-    val mergedTextStyle = textStyle.merge(ComposeTextStyle(color = baseTextColor))
-
-//    BasicTextField(
-//        value = TextFieldValue(
-//            annotatedString = annotatedString,
-//            selection = value.selection,
-//            composition = value.composition,
-//        ),
-//        onValueChange = { newValue ->
-//            onValueChange(
-//                TextFieldValue(
-//                    text = newValue.text,
-//                    selection = newValue.selection,
-//                    composition = newValue.composition,
-//                )
-//            )
-//        },
-//        modifier = modifier,
-//        enabled = enabled,
-//        readOnly = readOnly,
-//        textStyle = mergedTextStyle,
-//        cursorBrush = cursorBrush,
-//        interactionSource = interactionSource,
-//        keyboardOptions = keyboardOptions,
-//        keyboardActions = keyboardActions,
-//        singleLine = singleLine,
-//        minLines = if (singleLine) 1 else minLines,
-//        maxLines = if (singleLine) 1 else maxLines,
-//        decorationBox = { innerTextField ->
-//            TextFieldDefaults.DecorationBox(
-//                value = value.text,
-//                innerTextField = innerTextField,
-//                enabled = enabled,
-//                singleLine = singleLine,
-//                visualTransformation = androidx.compose.ui.text.input.VisualTransformation.None,
-//                interactionSource = interactionSource,
-//                isError = isError,
-//                label = label,
-//                placeholder = placeholder,
-//                leadingIcon = leadingIcon,
-//                trailingIcon = trailingIcon,
-//                supportingText = supportingText,
-//                prefix = null,
-//                suffix = null,
-//                shape = shape,
-//                colors = colors,
-//                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-//            )
-//        }
-//    )
+    // Trim Android font padding globally at the text level (correct place)
+    val mergedTextStyle = textStyle.merge(
+        ComposeTextStyle(
+            color = baseTextColor,
+            platformStyle = PlatformTextStyle(includeFontPadding = false)
+        )
+    )
 
     BasicTextField(
         value = value,
@@ -211,12 +150,10 @@ private fun findActiveBlock(
             block.contentRange?.let { add(it) }
             addAll(block.markers)
         }
-
         if (ranges.any { position in it }) {
             return index
         }
     }
-
     return -1
 }
 
@@ -255,7 +192,6 @@ private fun buildDisplayAnnotatedString(
                 TextDirection.RTL -> ComposeTextDirection.Rtl
                 TextDirection.NULL -> null
             }
-
             if (paragraphDirection != null) {
                 builder.addStyle(
                     ParagraphStyle(textDirection = paragraphDirection),
@@ -265,11 +201,17 @@ private fun buildDisplayAnnotatedString(
             }
 
             if (block.style == TextStyle.LIST_ITEM) {
+                // Compact list paragraph: indent + smaller lineHeight + trimmed leading
                 builder.addStyle(
                     ParagraphStyle(
                         textIndent = TextIndent(
                             firstLine = 16.sp,
                             restLine = 16.sp,
+                        ),
+                        lineHeight = 18.sp,
+                        lineHeightStyle = LineHeightStyle(
+                            alignment = LineHeightStyle.Alignment.Proportional,
+                            trim = LineHeightStyle.Trim.Both
                         )
                     ),
                     contentRange.first,
@@ -300,7 +242,8 @@ private fun spanStyleFor(
     typography: androidx.compose.material3.Typography,
     linkColor: Color,
 ): SpanStyle? = when (style) {
-    TextStyle.BODY, TextStyle.LIST_ITEM -> typography.bodyLarge.toSpanStyle()
+    TextStyle.BODY -> typography.bodyLarge.toSpanStyle()
+    TextStyle.LIST_ITEM -> typography.bodyLarge.toSpanStyle() // no lineHeight here
     TextStyle.POWER -> typography.titleMedium.toSpanStyle()
     TextStyle.SUBTITLE -> typography.titleSmall.toSpanStyle()
     TextStyle.LINK -> typography.bodyLarge.toSpanStyle().copy(color = linkColor)
@@ -310,7 +253,6 @@ private fun spanStyleFor(
     TextStyle.HEADING_4 -> typography.titleLarge.toSpanStyle()
     TextStyle.HEADING_5 -> typography.titleMedium.toSpanStyle()
 }
-
 
 class MarkerVisualTransformation(
     private val parsedBlocks: List<TextParser.ParsedBlock>,
@@ -331,9 +273,7 @@ class MarkerVisualTransformation(
                 parsed.markers.forEach { range ->
                     val start = range.first.coerceAtLeast(0)
                     val end = (range.last + 1).coerceAtMost(n)
-                    for (i in start until end) {
-                        hide[i] = true
-                    }
+                    for (i in start until end) hide[i] = true
                 }
             }
         }
@@ -353,7 +293,7 @@ class MarkerVisualTransformation(
         originalToTransformed[n] = destIndex
         val destLen = destIndex
 
-        // 3) Add styles (similar to your buildDisplayAnnotatedString but using mapped indices)
+        // 3) Add styles (mapped indices)
         parsedBlocks.forEachIndexed { idx, parsed ->
             val block = parsed.block
             val contentRange = parsed.contentRange
@@ -363,17 +303,13 @@ class MarkerVisualTransformation(
                 val end = originalToTransformed[contentRange.last + 1]
                 if (start < end) {
                     val baseStyle = spanStyleFor(block.style, typography, linkColor)
-                    if (baseStyle != null) {
-                        builder.addStyle(baseStyle, start, end)
-                    }
+                    if (baseStyle != null) builder.addStyle(baseStyle, start, end)
 
                     val inlineStyle = SpanStyle(
                         fontWeight = if (block.bold) FontWeight.Bold else null,
                         fontStyle = if (block.italic) FontStyle.Italic else null,
                     )
-                    if (inlineStyle != SpanStyle()) {
-                        builder.addStyle(inlineStyle, start, end)
-                    }
+                    if (inlineStyle != SpanStyle()) builder.addStyle(inlineStyle, start, end)
 
                     val paragraphDirection = when (block.direction) {
                         TextDirection.LTR -> ComposeTextDirection.Ltr
@@ -389,11 +325,17 @@ class MarkerVisualTransformation(
                     }
 
                     if (block.style == TextStyle.LIST_ITEM) {
+                        // Match compact list paragraph here too
                         builder.addStyle(
                             ParagraphStyle(
                                 textIndent = TextIndent(
                                     firstLine = 16.sp,
                                     restLine = 16.sp,
+                                ),
+                                lineHeight = 18.sp,
+                                lineHeightStyle = LineHeightStyle(
+                                    alignment = LineHeightStyle.Alignment.Proportional,
+                                    trim = LineHeightStyle.Trim.Both
                                 )
                             ),
                             start,
@@ -403,7 +345,7 @@ class MarkerVisualTransformation(
                 }
             }
 
-            // Markers: only the ACTIVE block markers remain in transformed text
+            // Markers: only ACTIVE block markers remain in transformed text
             if (idx == activeBlockIndex) {
                 parsed.markers.forEach { range ->
                     val s0 = range.first.coerceAtLeast(0)
@@ -425,9 +367,7 @@ class MarkerVisualTransformation(
         val transformedToOriginal = IntArray(destLen + 1)
         var i = 0
         for (t in 0..destLen) {
-            while (i < n && originalToTransformed[i] < t) {
-                i++
-            }
+            while (i < n && originalToTransformed[i] < t) i++
             transformedToOriginal[t] = i
         }
 
@@ -436,7 +376,6 @@ class MarkerVisualTransformation(
                 val o = offset.coerceIn(0, n)
                 return originalToTransformed[o]
             }
-
             override fun transformedToOriginal(offset: Int): Int {
                 val t = offset.coerceIn(0, destLen)
                 return transformedToOriginal[t]

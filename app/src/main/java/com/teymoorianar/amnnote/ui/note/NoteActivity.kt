@@ -575,6 +575,8 @@ private fun writingToolsDemo(): List<ToolItem> = listOf(
     ToolItem("italic", R.drawable.rounded_format_italic_24,      ""),
     ToolItem("heading",        R.drawable.tag_24px,          ""),
     ToolItem("bullet",    R.drawable.rounded_format_list_bulleted_24, ""),
+    ToolItem("indent-inc",    R.drawable.format_indent_increase_24px, ""),
+    ToolItem("indent-dec",    R.drawable.format_indent_decrease_24px, ""),
     ToolItem("H1",    R.drawable.format_h1_24px, ""),
     ToolItem("H2",    R.drawable.format_h2_24px, ""),
     ToolItem("H3",    R.drawable.format_h3_24px, ""),

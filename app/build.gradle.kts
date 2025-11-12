@@ -55,6 +55,8 @@ configurations {
 dependencies {
 
     implementation(libs.hilt.android)
+    implementation(libs.material3)
+    implementation(libs.androidx.foundation.layout)
     ksp(libs.hilt.compiler)
     ksp(libs.hilt.androidx.compiler)
     implementation(libs.androidx.hilt.navigation.compose)

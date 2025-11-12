@@ -55,10 +55,14 @@ import com.teymoorianar.amnnote.ui.main.MainViewModel
 import com.teymoorianar.amnnote.ui.note.NoteActivity
 import com.teymoorianar.amnnote.ui.theme.AmnNoteTheme
 import dagger.hilt.android.AndroidEntryPoint
-import org.burnoutcrew.reorderable.ReorderableItem
-import org.burnoutcrew.reorderable.detectReorderAfterLongPress
-import org.burnoutcrew.reorderable.rememberReorderableLazyListState
-import org.burnoutcrew.reorderable.reorderable
+import androidx.compose.foundation.lazy.rememberLazyListState
+import sh.calvin.reorderable.ReorderableItem
+//import sh.calvin.reorderable.draggableHandle
+import sh.calvin.reorderable.rememberReorderableLazyListState
+//import org.burnoutcrew.reorderable.ReorderableItem
+//import org.burnoutcrew.reorderable.detectReorderAfterLongPress
+//import org.burnoutcrew.reorderable.rememberReorderableLazyListState
+//import org.burnoutcrew.reorderable.reorderable
 import androidx.compose.material3.MaterialTheme as Material3Theme
 
 @AndroidEntryPoint
@@ -127,16 +131,20 @@ private fun NotesList(
     onDragEnd: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val reorderableState = rememberReorderableLazyListState(
-        onMove = { from, to -> onMove(from.index, to.index) },
-        onDragEnd = { _, _ -> onDragEnd() }
-    )
+    val lazyListState = rememberLazyListState()
+    val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
+        onMove(from.index, to.index)
+    }
+//    val reorderableState = rememberReorderableLazyListState(from, to -> onMove(from.index, to.index) },
+////        onDragEnd = { _, _ -> onDragEnd() }
+//    )
 
     LazyColumn(
-        modifier = modifier
-            .reorderable(reorderableState)
-            .detectReorderAfterLongPress(reorderableState),
-        state = reorderableState.listState,
+        modifier = modifier,
+//            .reorderable(reorderableState)
+//            .detectReorderAfterLongPress(reorderableState),
+//        state = reorderableState.listState,
+        state = lazyListState,             // NEW: use the normal LazyList state
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -145,7 +153,11 @@ private fun NotesList(
                 NoteCard(
                     note = note,
                     onClick = { onNoteClick(note.id) },
-                    modifier = Modifier.alpha(if (isDragging) 0.6f else 1f)
+                    modifier = Modifier
+                        .alpha(if (isDragging) 0.6f else 1f)
+                        .draggableHandle(
+                            onDragStopped = onDragEnd
+                        )
                 )
             }
         }

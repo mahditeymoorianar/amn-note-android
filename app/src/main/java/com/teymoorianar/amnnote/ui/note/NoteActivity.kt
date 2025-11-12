@@ -10,18 +10,33 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -32,6 +47,8 @@ import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.rounded.ArrowBackIosNew
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
@@ -42,6 +59,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -56,16 +74,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 //import androidx.compose.ui.text.input.TextRange
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -347,81 +370,217 @@ private fun NoteEditorScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
-        Column(
+        val imeVisible = isImeVisible()
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp)
-                .verticalScroll(scrollState),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            if (state.isLoading) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
-
-            FormattedTextField(
-                value = contentField,
-                onValueChange = { newValue ->
-                    contentField = newValue
-                    onContentChange(newValue.text)
-                },
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight()
-                    .onFocusChanged { focusState ->
-                        val nowFocused = focusState.isFocused
-                        if (nowFocused && state.readingMode) {
-                            switchEditMode(false) // <-- your custom function
-                        }
-                    },
-//                label = { Text(text = stringResource(id = R.string.note_content_label)) },
-                placeholder = { Text("Write here...") },
-                minLines = 40,
-                maxLines = Int.MAX_VALUE,
-                colors = TextFieldDefaults.colors(
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedContainerColor = Color.Transparent,
-                    disabledContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
-                ),
-                textStyle = TextStyle(
-                    fontSize = 20.sp
-                )
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .fillMaxSize()
+                    .padding(16.dp)
+                    .verticalScroll(scrollState),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-
-                if (state.noteId != 0L) {
-                    OutlinedButton(
-                        onClick = onDeleteClick,
-                        enabled = !state.isLoading,
-                        modifier = Modifier.weight(1f)
+                if (state.isLoading) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center
                     ) {
-                        Text(text = stringResource(id = R.string.delete))
+                        CircularProgressIndicator()
                     }
                 }
-            }
 
-            if (!state.isLoading && state.noteId == 0L) {
-                Text(
-                    text = stringResource(id = R.string.note_hint_text),
+                FormattedTextField(
+                    value = contentField,
+                    onValueChange = { newValue ->
+                        contentField = newValue
+                        onContentChange(newValue.text)
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    textAlign = TextAlign.Center
+                        .fillMaxHeight()
+                        .onFocusChanged { focusState ->
+                            val nowFocused = focusState.isFocused
+                            if (nowFocused && state.readingMode) {
+                                switchEditMode(false) // <-- your custom function
+                            }
+                        },
+//                label = { Text(text = stringResource(id = R.string.note_content_label)) },
+                    placeholder = { Text("Write here...") },
+                    minLines = 40,
+                    maxLines = Int.MAX_VALUE,
+                    colors = TextFieldDefaults.colors(
+                        unfocusedContainerColor = Color.Transparent,
+                        focusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent
+                    ),
+                    textStyle = TextStyle(
+                        fontSize = 20.sp
+                    )
                 )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+
+                    if (state.noteId != 0L) {
+                        OutlinedButton(
+                            onClick = onDeleteClick,
+                            enabled = !state.isLoading,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(text = stringResource(id = R.string.delete))
+                        }
+                    }
+                }
+
+                if (!state.isLoading && state.noteId == 0L) {
+                    Text(
+                        text = stringResource(id = R.string.note_hint_text),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
+                if (!state.readingMode && !imeVisible) {
+                    Spacer(Modifier.padding(bottom = 80.dp)) // ~panel height; tweak as needed
+                }
+            }
+            // NEW: The floating, rounded, horizontally scrollable panel
+            WritingToolsPanel(
+                visible = !state.readingMode,
+                tools = writingToolsDemo(),               // supply your tools here
+                onToolClick = { tool ->
+                    // TODO: perform your action (insert markdown, toggle style, etc.)
+                    // Example: onContentChange(applyTool(state.content, tool))
+                },
+                bottomMargin = 8.dp,
+                cornerRadius = 20.dp,
+                elevated = true,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)// required for alignment inside Box
+            )
+        }
+    }
+}
+
+
+data class ToolItem(
+    val id: String,
+    val iconRes: Int,
+    val label: String,
+    val color: Color? = null
+)
+
+@Composable
+fun WritingToolsPanel(
+    visible: Boolean,
+    tools: List<ToolItem>,
+    onToolClick: (ToolItem) -> Unit,
+    modifier: Modifier = Modifier,
+    bottomMargin: Dp = 8.dp,
+    cornerRadius: Dp = 20.dp,
+    containerColor: Color = MaterialTheme.colorScheme.surface,
+    contentColor: Color = MaterialTheme.colorScheme.onSurface,
+    elevated: Boolean = true,
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = slideInVertically(initialOffsetY = { it / 3 }, animationSpec = tween(180)) + fadeIn(tween(150)),
+        exit = slideOutVertically(targetOffsetY = { it / 3 }, animationSpec = tween(160)) + fadeOut(tween(120)),
+        modifier = modifier
+            .padding(bottom = bottomMargin)
+            .imePadding()                // jump above IME when it shows
+            .navigationBarsPadding()     // hover above gesture bar when IME hidden
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp)
+    ) {
+        val shape = RoundedCornerShape(cornerRadius)
+
+        val rowContent: @Composable () -> Unit = {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp)
+            ) {
+                items(tools, key = { it.id }) { tool ->
+                    ToolChip(item = tool, onClick = { onToolClick(tool) }, contentColor = contentColor)
+                }
+            }
+        }
+
+        if (elevated) {
+            Card(
+                shape = shape,
+                colors = CardDefaults.cardColors(containerColor),
+                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) { rowContent() }
+        } else {
+            Surface(shape = shape, color = containerColor, contentColor = contentColor, modifier = Modifier.fillMaxWidth()) {
+                rowContent()
             }
         }
     }
 }
 
+@Composable
+private fun ToolChip(
+    item: ToolItem,
+    onClick: () -> Unit,
+    contentColor: Color,
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = contentColor.copy(alpha = 0.00f),
+        modifier = Modifier.padding(horizontal = 2.dp, vertical = 2.dp),
+        tonalElevation = 0.dp
+    ) {
+        androidx.compose.foundation.layout.Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .clip(RoundedCornerShape(16.dp))
+                .padding(start = 2.dp, end = 6.dp, top = 6.dp, bottom = 6.dp)
+        ) {
+            IconButton(onClick = onClick, modifier = Modifier) {
+                Icon(painter = painterResource(item.iconRes),
+                    contentDescription = item.label,
+                    tint = item.color?: Color(0xFFFFFFFF)
+                )
+            }
+            Text(text = item.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+/**
+ * Helper you can use to know whether the IME is visible.
+ * (No extra dependencies needed; uses insets height in px.)
+ */
+@Composable
+fun isImeVisible(): Boolean {
+    val bottomPx = WindowInsets.ime.getBottom(LocalDensity.current)
+    return bottomPx > 0
+}
+
+private fun writingToolsDemo(): List<ToolItem> = listOf(
+    ToolItem("ltr", R.drawable.rounded_format_textdirection_l_to_r_24, ""),
+    ToolItem("rtl", R.drawable.rounded_format_textdirection_r_to_l_24, ""),
+    ToolItem("bold", R.drawable.rounded_format_bold_24,        ""),
+    ToolItem("italic", R.drawable.rounded_format_italic_24,      ""),
+    ToolItem("heading",        R.drawable.tag_24px,          ""),
+    ToolItem("bullet",    R.drawable.rounded_format_list_bulleted_24, ""),
+    ToolItem("H1",    R.drawable.format_h1_24px, ""),
+    ToolItem("H2",    R.drawable.format_h2_24px, ""),
+    ToolItem("H3",    R.drawable.format_h3_24px, ""),
+    ToolItem("H4",    R.drawable.format_h4_24px, ""),
+    ToolItem("H5",    R.drawable.format_h5_24px, ""),
+    ToolItem("delete",    R.drawable.delete_24px, "", color = Color(0xFfCf0000)),
+//    ToolItem("code",      R.drawable.rounded_checkbook_24,        ""), TODO
+//    ToolItem("quote",     R.drawable.rounded_checkbook_24,       ""), TODO
+)

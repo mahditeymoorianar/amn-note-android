@@ -54,7 +54,7 @@ fun AmnNoteTheme(
         }
 
         darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+        else -> DarkColorScheme//LightColorScheme
     }
 
     MaterialTheme(

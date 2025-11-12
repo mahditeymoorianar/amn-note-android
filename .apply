@@ -1,155 +1,235 @@
  (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
-diff --git a/app/src/main/java/com/teymoorianar/amnnote/ui/note/NoteActivity.kt b/app/src/main/java/com/teymoorianar/amnnote/ui/note/NoteActivity.kt
-index 397677c10ae1654c0bfe8aee34a855448e97d42b..807d5491adc7176a581709ad196650f3839fd09c 100644
---- a/app/src/main/java/com/teymoorianar/amnnote/ui/note/NoteActivity.kt
-+++ b/app/src/main/java/com/teymoorianar/amnnote/ui/note/NoteActivity.kt
-@@ -373,52 +373,56 @@ private fun NoteEditorScreen(
-         val imeVisible = isImeVisible()
-         Box(
-             modifier = Modifier
-                 .fillMaxSize()
-                 .padding(innerPadding)
-         ) {
-             Column(
-                 modifier = Modifier
-                     .fillMaxSize()
-                     .padding(16.dp)
-                     .verticalScroll(scrollState),
-                 verticalArrangement = Arrangement.spacedBy(16.dp)
-             ) {
-                 if (state.isLoading) {
-                     Row(
-                         modifier = Modifier.fillMaxWidth(),
-                         horizontalArrangement = Arrangement.Center
-                     ) {
-                         CircularProgressIndicator()
-                     }
-                 }
+diff --git a/app/src/main/java/com/teymoorianar/amnnote/ui/components/FormattedTextField.kt b/app/src/main/java/com/teymoorianar/amnnote/ui/components/FormattedTextField.kt
+index c7a39e39d80365410f83a2eb8ae0b08aaf750464..66bea52ae4c0c1853a88f8bbd9e74649a993df4c 100644
+--- a/app/src/main/java/com/teymoorianar/amnnote/ui/components/FormattedTextField.kt
++++ b/app/src/main/java/com/teymoorianar/amnnote/ui/components/FormattedTextField.kt
+@@ -70,50 +70,52 @@ fun FormattedTextField(
+         isError -> MaterialTheme.colorScheme.error
+         else -> MaterialTheme.colorScheme.onSurface
+     }
  
-                 FormattedTextField(
-                     value = contentField,
-                     onValueChange = { newValue ->
--                        contentField = newValue
--                        onContentChange(newValue.text)
-+                        val processedValue = handleListAutoFormatting(
-+                            oldValue = contentField,
-+                            newValue = newValue
-+                        )
-+                        contentField = processedValue
-+                        onContentChange(processedValue.text)
-                     },
-                     modifier = Modifier
-                         .fillMaxWidth()
-                         .fillMaxHeight()
-                         .onFocusChanged { focusState ->
-                             val nowFocused = focusState.isFocused
-                             if (nowFocused && state.readingMode) {
-                                 switchEditMode(false) // <-- your custom function
-                             }
-                         },
- //                label = { Text(text = stringResource(id = R.string.note_content_label)) },
-                     placeholder = { Text("Write here...") },
-                     minLines = 40,
-                     maxLines = Int.MAX_VALUE,
-                     colors = TextFieldDefaults.colors(
-                         unfocusedContainerColor = Color.Transparent,
-                         focusedContainerColor = Color.Transparent,
-                         disabledContainerColor = Color.Transparent,
-                         focusedIndicatorColor = Color.Transparent,
-                         unfocusedIndicatorColor = Color.Transparent
-                     ),
-                     textStyle = TextStyle(
-                         fontSize = 20.sp
-                     )
-                 )
-@@ -546,43 +550,87 @@ private fun ToolChip(
-             modifier = Modifier
-                 .clip(RoundedCornerShape(16.dp))
-                 .padding(start = 2.dp, end = 6.dp, top = 6.dp, bottom = 6.dp)
-         ) {
-             IconButton(onClick = onClick, modifier = Modifier) {
-                 Icon(painter = painterResource(item.iconRes),
-                     contentDescription = item.label,
-                     tint = item.color?: Color(0xFFFFFFFF)
+     val parseResult = remember(value.text) { TextParser.analyze(value.text) }
+     val selectionStart = value.selection.min
+     val activeBlockIndex = remember(parseResult, selectionStart) {
+         findActiveBlock(parseResult, selectionStart)
+     }
+ 
+     val visualTransformation = remember(
+         parseResult,
+         activeBlockIndex,
+         typography,
+         activeMarkerColor,
+     ) {
+         MarkerVisualTransformation(
+             parsedBlocks = parseResult,
+             activeBlockIndex = activeBlockIndex,
+             typography = typography,
+             activeMarkerColor = activeMarkerColor,
+             linkColor = Color(0xFFEA10FF),
+         )
+     }
+ 
++private const val BULLET_CHARACTER: Char = '\u2022'
++
+     // Trim Android font padding globally at the text level (correct place)
+     val mergedTextStyle = textStyle.merge(
+         ComposeTextStyle(
+             color = baseTextColor,
+             platformStyle = PlatformTextStyle(includeFontPadding = false)
+         )
+     )
+ 
+     BasicTextField(
+         value = value,
+         onValueChange = onValueChange,
+         modifier = modifier,
+         enabled = enabled,
+         readOnly = readOnly,
+         textStyle = mergedTextStyle,
+         cursorBrush = cursorBrush,
+         interactionSource = interactionSource,
+         keyboardOptions = keyboardOptions,
+         keyboardActions = keyboardActions,
+         singleLine = singleLine,
+         minLines = if (singleLine) 1 else minLines,
+         maxLines = if (singleLine) 1 else maxLines,
+         visualTransformation = visualTransformation,
+         decorationBox = { innerTextField ->
+             TextFieldDefaults.DecorationBox(
+@@ -183,51 +185,51 @@ private fun buildDisplayAnnotatedString(
+                 fontWeight = if (block.bold) FontWeight.Bold else null,
+                 fontStyle = if (block.italic) FontStyle.Italic else null,
+             )
+             if (inlineStyle != SpanStyle()) {
+                 builder.addStyle(inlineStyle, contentRange.first, contentRange.last + 1)
+             }
+ 
+             val paragraphDirection = when (block.direction) {
+                 TextDirection.LTR -> ComposeTextDirection.Ltr
+                 TextDirection.RTL -> ComposeTextDirection.Rtl
+                 TextDirection.NULL -> null
+             }
+             if (paragraphDirection != null) {
+                 builder.addStyle(
+                     ParagraphStyle(textDirection = paragraphDirection),
+                     contentRange.first,
+                     contentRange.last + 1,
                  )
              }
-             Text(text = item.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+ 
+             if (block.style == TextStyle.LIST_ITEM) {
+                 // Compact list paragraph: indent + smaller lineHeight + trimmed leading
+                 builder.addStyle(
+                     ParagraphStyle(
+                         textIndent = TextIndent(
+-                            firstLine = 16.sp,
++                            firstLine = 0.sp,
+                             restLine = 16.sp,
+                         ),
+                         lineHeight = 18.sp,
+                         lineHeightStyle = LineHeightStyle(
+                             alignment = LineHeightStyle.Alignment.Proportional,
+                             trim = LineHeightStyle.Trim.Both
+                         )
+                     ),
+                     contentRange.first,
+                     contentRange.last + 1,
+                 )
+             }
          }
-     }
- }
  
- /**
-  * Helper you can use to know whether the IME is visible.
-  * (No extra dependencies needed; uses insets height in px.)
-  */
- @Composable
- fun isImeVisible(): Boolean {
-     val bottomPx = WindowInsets.ime.getBottom(LocalDensity.current)
-     return bottomPx > 0
- }
+         val markerColor =
+             if (index == activeBlockIndex) activeMarkerColor else inactiveMarkerColor
  
-+private val bulletLineRegex = Regex("^([\\t ]*)- (.*)$")
+         parsed.markers.forEach { range ->
+             if (range.first <= range.last && range.last < text.length) {
+                 builder.addStyle(
+                     SpanStyle(color = markerColor),
+                     range.first,
+                     range.last + 1,
+                 )
+             }
+@@ -256,102 +258,119 @@ private fun spanStyleFor(
+ 
+ class MarkerVisualTransformation(
+     private val parsedBlocks: List<TextParser.ParsedBlock>,
+     private val activeBlockIndex: Int,
+     private val typography: Typography,
+     private val activeMarkerColor: Color,
+     private val linkColor: Color,
+ ) : VisualTransformation {
+ 
+     override fun filter(text: AnnotatedString): TransformedText {
+         val src = text.text
+         val n = src.length
+ 
+         // 1) Mark characters that belong to markers of NON-active blocks (to be hidden)
+         val hide = BooleanArray(n)
+         parsedBlocks.forEachIndexed { idx, parsed ->
+             if (idx != activeBlockIndex) {
+                 parsed.markers.forEach { range ->
+                     val start = range.first.coerceAtLeast(0)
+                     val end = (range.last + 1).coerceAtMost(n)
+                     for (i in start until end) hide[i] = true
+                 }
+             }
+         }
+ 
++        // Prepare bullet insert positions for non-active list items
++        val bulletInsertions = buildMap {
++            parsedBlocks.forEachIndexed { idx, parsed ->
++                if (parsed.block.style == TextStyle.LIST_ITEM) {
++                    val range = parsed.contentRange
++                    if (range != null) {
++                        put(range.first, idx != activeBlockIndex)
++                    }
++                }
++            }
++        }
 +
-+private fun handleListAutoFormatting(
-+    oldValue: TextFieldValue,
-+    newValue: TextFieldValue
-+): TextFieldValue {
-+    val newSelection = newValue.selection
-+    if (!newSelection.collapsed) return newValue
-+
-+    if (newValue.text.length != oldValue.text.length + 1) return newValue
-+
-+    val cursor = newSelection.start
-+    if (cursor == 0 || cursor > newValue.text.length) return newValue
-+
-+    if (newValue.text[cursor - 1] != '\n') return newValue
-+
-+    val newlineIndex = cursor - 1
-+    val lineStart = newValue.text.lastIndexOf('\n', newlineIndex - 1).let { index ->
-+        if (index == -1) 0 else index + 1
-+    }
-+    if (lineStart > newlineIndex) return newValue
-+
-+    val lineContent = newValue.text.substring(lineStart, newlineIndex)
-+    val match = bulletLineRegex.matchEntire(lineContent) ?: return newValue
-+
-+    val indent = match.groupValues[1]
-+    val afterDash = match.groupValues[2]
-+
-+    return if (afterDash.isBlank()) {
-+        val builder = StringBuilder(newValue.text)
-+        builder.delete(lineStart, newlineIndex)
-+        val updatedText = builder.toString()
-+        val newCursor = cursor - (newlineIndex - lineStart)
-+        newValue.copy(text = updatedText, selection = TextRange(newCursor))
-+    } else {
-+        val insertion = indent + "- "
-+        val builder = StringBuilder(newValue.text)
-+        builder.insert(cursor, insertion)
-+        val updatedText = builder.toString()
-+        val newCursor = cursor + insertion.length
-+        newValue.copy(text = updatedText, selection = TextRange(newCursor))
-+    }
-+}
-+
- private fun writingToolsDemo(): List<ToolItem> = listOf(
-     ToolItem("ltr", R.drawable.rounded_format_textdirection_l_to_r_24, ""),
-     ToolItem("rtl", R.drawable.rounded_format_textdirection_r_to_l_24, ""),
-     ToolItem("bold", R.drawable.rounded_format_bold_24,        ""),
-     ToolItem("italic", R.drawable.rounded_format_italic_24,      ""),
-     ToolItem("heading",        R.drawable.tag_24px,          ""),
-     ToolItem("bullet",    R.drawable.rounded_format_list_bulleted_24, ""),
-     ToolItem("indent-inc",    R.drawable.format_indent_increase_24px, ""),
-     ToolItem("indent-dec",    R.drawable.format_indent_decrease_24px, ""),
-     ToolItem("H1",    R.drawable.format_h1_24px, ""),
-     ToolItem("H2",    R.drawable.format_h2_24px, ""),
-     ToolItem("H3",    R.drawable.format_h3_24px, ""),
-     ToolItem("H4",    R.drawable.format_h4_24px, ""),
-     ToolItem("H5",    R.drawable.format_h5_24px, ""),
-     ToolItem("delete",    R.drawable.delete_24px, "", color = Color(0xFfCf0000)),
- //    ToolItem("code",      R.drawable.rounded_checkbook_24,        ""), TODO
- //    ToolItem("quote",     R.drawable.rounded_checkbook_24,       ""), TODO
- )
+         // 2) Build transformed text and original -> transformed offset map
+         val originalToTransformed = IntArray(n + 1)
+         val builder = AnnotatedString.Builder()
+         var destIndex = 0
+ 
+         for (i in 0 until n) {
+             originalToTransformed[i] = destIndex
+             if (!hide[i]) {
++                if (bulletInsertions[i] == true) {
++                    builder.append(BULLET_CHARACTER)
++                    builder.append(' ')
++                    destIndex += 2
++                }
+                 builder.append(src[i])
+                 destIndex++
+             }
+         }
+         originalToTransformed[n] = destIndex
+         val destLen = destIndex
+ 
+         // 3) Add styles (mapped indices)
+         parsedBlocks.forEachIndexed { idx, parsed ->
+             val block = parsed.block
+             val contentRange = parsed.contentRange
+ 
+             if (contentRange != null && contentRange.first <= contentRange.last) {
+                 val start = originalToTransformed[contentRange.first]
+                 val end = originalToTransformed[contentRange.last + 1]
+                 if (start < end) {
+                     val baseStyle = spanStyleFor(block.style, typography, linkColor)
+                     if (baseStyle != null) builder.addStyle(baseStyle, start, end)
+ 
+                     val inlineStyle = SpanStyle(
+                         fontWeight = if (block.bold) FontWeight.Bold else null,
+                         fontStyle = if (block.italic) FontStyle.Italic else null,
+                     )
+                     if (inlineStyle != SpanStyle()) builder.addStyle(inlineStyle, start, end)
+ 
+                     val paragraphDirection = when (block.direction) {
+                         TextDirection.LTR -> ComposeTextDirection.Ltr
+                         TextDirection.RTL -> ComposeTextDirection.Rtl
+                         TextDirection.NULL -> null
+                     }
+                     if (paragraphDirection != null) {
+                         builder.addStyle(
+                             ParagraphStyle(textDirection = paragraphDirection),
+                             start,
+                             end,
+                         )
+                     }
+ 
+                     if (block.style == TextStyle.LIST_ITEM) {
+                         // Match compact list paragraph here too
+                         builder.addStyle(
+                             ParagraphStyle(
+                                 textIndent = TextIndent(
+-                                    firstLine = 16.sp,
++                                    firstLine = 0.sp,
+                                     restLine = 16.sp,
+                                 ),
+                                 lineHeight = 18.sp,
+                                 lineHeightStyle = LineHeightStyle(
+                                     alignment = LineHeightStyle.Alignment.Proportional,
+                                     trim = LineHeightStyle.Trim.Both
+                                 )
+                             ),
+                             start,
+                             end,
+                         )
+                     }
+                 }
+             }
+ 
+             // Markers: only ACTIVE block markers remain in transformed text
+             if (idx == activeBlockIndex) {
+                 parsed.markers.forEach { range ->
+                     val s0 = range.first.coerceAtLeast(0)
+                     val e0 = (range.last + 1).coerceAtMost(n)
+                     val start = originalToTransformed[s0]
+                     val end = originalToTransformed[e0]
+                     if (start < end) {
+                         builder.addStyle(
+                             SpanStyle(color = activeMarkerColor),
  
 EOF
 )

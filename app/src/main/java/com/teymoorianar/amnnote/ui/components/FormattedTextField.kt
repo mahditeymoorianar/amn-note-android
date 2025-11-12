@@ -37,6 +37,7 @@ import com.teymoorianar.amnnote.domain.model.TextDirection
 import com.teymoorianar.amnnote.domain.model.TextParser
 import com.teymoorianar.amnnote.domain.model.TextStyle
 
+private const val BULLET_CHARACTER: Char = '\u2022'
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FormattedTextField(
@@ -91,6 +92,7 @@ fun FormattedTextField(
             linkColor = Color(0xFFEA10FF),
         )
     }
+
 
     // Trim Android font padding globally at the text level (correct place)
     val mergedTextStyle = textStyle.merge(
@@ -205,7 +207,7 @@ private fun buildDisplayAnnotatedString(
                 builder.addStyle(
                     ParagraphStyle(
                         textIndent = TextIndent(
-                            firstLine = 16.sp,
+                            firstLine = 0.sp,
                             restLine = 16.sp,
                         ),
                         lineHeight = 18.sp,
@@ -278,6 +280,18 @@ class MarkerVisualTransformation(
             }
         }
 
+        // Prepare bullet insert positions for non-active list items
+        val bulletInsertions = buildMap {
+            parsedBlocks.forEachIndexed { idx, parsed ->
+                if (parsed.block.style == TextStyle.LIST_ITEM) {
+                    val range = parsed.contentRange
+                    if (range != null) {
+                        put(range.first, idx != activeBlockIndex)
+                    }
+                }
+            }
+        }
+
         // 2) Build transformed text and original -> transformed offset map
         val originalToTransformed = IntArray(n + 1)
         val builder = AnnotatedString.Builder()
@@ -286,6 +300,11 @@ class MarkerVisualTransformation(
         for (i in 0 until n) {
             originalToTransformed[i] = destIndex
             if (!hide[i]) {
+                if (bulletInsertions[i] == true) {
+                    builder.append(BULLET_CHARACTER)
+                    builder.append(' ')
+                    destIndex += 2
+                }
                 builder.append(src[i])
                 destIndex++
             }
@@ -329,7 +348,7 @@ class MarkerVisualTransformation(
                         builder.addStyle(
                             ParagraphStyle(
                                 textIndent = TextIndent(
-                                    firstLine = 16.sp,
+                                    firstLine = 0.sp,
                                     restLine = 16.sp,
                                 ),
                                 lineHeight = 18.sp,

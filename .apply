@@ -1,235 +1,335 @@
  (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
-diff --git a/app/src/main/java/com/teymoorianar/amnnote/ui/components/FormattedTextField.kt b/app/src/main/java/com/teymoorianar/amnnote/ui/components/FormattedTextField.kt
-index c7a39e39d80365410f83a2eb8ae0b08aaf750464..66bea52ae4c0c1853a88f8bbd9e74649a993df4c 100644
---- a/app/src/main/java/com/teymoorianar/amnnote/ui/components/FormattedTextField.kt
-+++ b/app/src/main/java/com/teymoorianar/amnnote/ui/components/FormattedTextField.kt
-@@ -70,50 +70,52 @@ fun FormattedTextField(
-         isError -> MaterialTheme.colorScheme.error
-         else -> MaterialTheme.colorScheme.onSurface
-     }
+diff --git a/app/src/main/java/com/teymoorianar/amnnote/ui/note/NoteActivity.kt b/app/src/main/java/com/teymoorianar/amnnote/ui/note/NoteActivity.kt
+index 807d5491adc7176a581709ad196650f3839fd09c..8bbc24c6ecdc9293d225a3e75364f344e234fda4 100644
+--- a/app/src/main/java/com/teymoorianar/amnnote/ui/note/NoteActivity.kt
++++ b/app/src/main/java/com/teymoorianar/amnnote/ui/note/NoteActivity.kt
+@@ -440,52 +440,55 @@ private fun NoteEditorScreen(
+                             modifier = Modifier.weight(1f)
+                         ) {
+                             Text(text = stringResource(id = R.string.delete))
+                         }
+                     }
+                 }
  
-     val parseResult = remember(value.text) { TextParser.analyze(value.text) }
-     val selectionStart = value.selection.min
-     val activeBlockIndex = remember(parseResult, selectionStart) {
-         findActiveBlock(parseResult, selectionStart)
-     }
- 
-     val visualTransformation = remember(
-         parseResult,
-         activeBlockIndex,
-         typography,
-         activeMarkerColor,
-     ) {
-         MarkerVisualTransformation(
-             parsedBlocks = parseResult,
-             activeBlockIndex = activeBlockIndex,
-             typography = typography,
-             activeMarkerColor = activeMarkerColor,
-             linkColor = Color(0xFFEA10FF),
-         )
-     }
- 
-+private const val BULLET_CHARACTER: Char = '\u2022'
-+
-     // Trim Android font padding globally at the text level (correct place)
-     val mergedTextStyle = textStyle.merge(
-         ComposeTextStyle(
-             color = baseTextColor,
-             platformStyle = PlatformTextStyle(includeFontPadding = false)
-         )
-     )
- 
-     BasicTextField(
-         value = value,
-         onValueChange = onValueChange,
-         modifier = modifier,
-         enabled = enabled,
-         readOnly = readOnly,
-         textStyle = mergedTextStyle,
-         cursorBrush = cursorBrush,
-         interactionSource = interactionSource,
-         keyboardOptions = keyboardOptions,
-         keyboardActions = keyboardActions,
-         singleLine = singleLine,
-         minLines = if (singleLine) 1 else minLines,
-         maxLines = if (singleLine) 1 else maxLines,
-         visualTransformation = visualTransformation,
-         decorationBox = { innerTextField ->
-             TextFieldDefaults.DecorationBox(
-@@ -183,51 +185,51 @@ private fun buildDisplayAnnotatedString(
-                 fontWeight = if (block.bold) FontWeight.Bold else null,
-                 fontStyle = if (block.italic) FontStyle.Italic else null,
-             )
-             if (inlineStyle != SpanStyle()) {
-                 builder.addStyle(inlineStyle, contentRange.first, contentRange.last + 1)
-             }
- 
-             val paragraphDirection = when (block.direction) {
-                 TextDirection.LTR -> ComposeTextDirection.Ltr
-                 TextDirection.RTL -> ComposeTextDirection.Rtl
-                 TextDirection.NULL -> null
-             }
-             if (paragraphDirection != null) {
-                 builder.addStyle(
-                     ParagraphStyle(textDirection = paragraphDirection),
-                     contentRange.first,
-                     contentRange.last + 1,
-                 )
-             }
- 
-             if (block.style == TextStyle.LIST_ITEM) {
-                 // Compact list paragraph: indent + smaller lineHeight + trimmed leading
-                 builder.addStyle(
-                     ParagraphStyle(
-                         textIndent = TextIndent(
--                            firstLine = 16.sp,
-+                            firstLine = 0.sp,
-                             restLine = 16.sp,
-                         ),
-                         lineHeight = 18.sp,
-                         lineHeightStyle = LineHeightStyle(
-                             alignment = LineHeightStyle.Alignment.Proportional,
-                             trim = LineHeightStyle.Trim.Both
-                         )
-                     ),
-                     contentRange.first,
-                     contentRange.last + 1,
-                 )
-             }
-         }
- 
-         val markerColor =
-             if (index == activeBlockIndex) activeMarkerColor else inactiveMarkerColor
- 
-         parsed.markers.forEach { range ->
-             if (range.first <= range.last && range.last < text.length) {
-                 builder.addStyle(
-                     SpanStyle(color = markerColor),
-                     range.first,
-                     range.last + 1,
-                 )
-             }
-@@ -256,102 +258,119 @@ private fun spanStyleFor(
- 
- class MarkerVisualTransformation(
-     private val parsedBlocks: List<TextParser.ParsedBlock>,
-     private val activeBlockIndex: Int,
-     private val typography: Typography,
-     private val activeMarkerColor: Color,
-     private val linkColor: Color,
- ) : VisualTransformation {
- 
-     override fun filter(text: AnnotatedString): TransformedText {
-         val src = text.text
-         val n = src.length
- 
-         // 1) Mark characters that belong to markers of NON-active blocks (to be hidden)
-         val hide = BooleanArray(n)
-         parsedBlocks.forEachIndexed { idx, parsed ->
-             if (idx != activeBlockIndex) {
-                 parsed.markers.forEach { range ->
-                     val start = range.first.coerceAtLeast(0)
-                     val end = (range.last + 1).coerceAtMost(n)
-                     for (i in start until end) hide[i] = true
+                 if (!state.isLoading && state.noteId == 0L) {
+                     Text(
+                         text = stringResource(id = R.string.note_hint_text),
+                         modifier = Modifier
+                             .fillMaxWidth()
+                             .padding(top = 8.dp),
+                         textAlign = TextAlign.Center
+                     )
+                 }
+                 if (!state.readingMode && !imeVisible) {
+                     Spacer(Modifier.padding(bottom = 80.dp)) // ~panel height; tweak as needed
                  }
              }
-         }
- 
-+        // Prepare bullet insert positions for non-active list items
-+        val bulletInsertions = buildMap {
-+            parsedBlocks.forEachIndexed { idx, parsed ->
-+                if (parsed.block.style == TextStyle.LIST_ITEM) {
-+                    val range = parsed.contentRange
-+                    if (range != null) {
-+                        put(range.first, idx != activeBlockIndex)
+             // NEW: The floating, rounded, horizontally scrollable panel
+             WritingToolsPanel(
+                 visible = !state.readingMode,
+                 tools = writingToolsDemo(),               // supply your tools here
+                 onToolClick = { tool ->
+-                    // TODO: perform your action (insert markdown, toggle style, etc.)
+-                    // Example: onContentChange(applyTool(state.content, tool))
++                    val updatedValue = applyToolAction(tool.id, contentField)
++                    if (updatedValue != contentField) {
++                        contentField = updatedValue
++                        onContentChange(updatedValue.text)
 +                    }
-+                }
+                 },
+                 bottomMargin = 8.dp,
+                 cornerRadius = 20.dp,
+                 elevated = true,
+                 modifier = Modifier
+                     .align(Alignment.BottomCenter)// required for alignment inside Box
+             )
+         }
+     }
+ }
+ 
+ 
+ data class ToolItem(
+     val id: String,
+     val iconRes: Int,
+     val label: String,
+     val color: Color? = null
+ )
+ 
+ @Composable
+ fun WritingToolsPanel(
+     visible: Boolean,
+     tools: List<ToolItem>,
+     onToolClick: (ToolItem) -> Unit,
+     modifier: Modifier = Modifier,
+@@ -594,43 +597,268 @@ private fun handleListAutoFormatting(
+     }
+     if (lineStart > newlineIndex) return newValue
+ 
+     val lineContent = newValue.text.substring(lineStart, newlineIndex)
+     val match = bulletLineRegex.matchEntire(lineContent) ?: return newValue
+ 
+     val indent = match.groupValues[1]
+     val afterDash = match.groupValues[2]
+ 
+     return if (afterDash.isBlank()) {
+         val builder = StringBuilder(newValue.text)
+         builder.delete(lineStart, newlineIndex)
+         val updatedText = builder.toString()
+         val newCursor = cursor - (newlineIndex - lineStart)
+         newValue.copy(text = updatedText, selection = TextRange(newCursor))
+     } else {
+         val insertion = indent + "- "
+         val builder = StringBuilder(newValue.text)
+         builder.insert(cursor, insertion)
+         val updatedText = builder.toString()
+         val newCursor = cursor + insertion.length
+         newValue.copy(text = updatedText, selection = TextRange(newCursor))
+     }
+ }
+ 
++private fun applyToolAction(toolId: String, value: TextFieldValue): TextFieldValue {
++    return when (toolId) {
++        "ltr" -> insertDirective(value, "\\ltr")
++        "rtl" -> insertDirective(value, "\\rtl")
++        "bold" -> surroundSelectionWith(value, "**")
++        "italic" -> surroundSelectionWith(value, "*")
++        "bullet" -> applyBulletToggle(value)
++        "indent-inc" -> applyIndentChange(value, increase = true)
++        "indent-dec" -> applyIndentChange(value, increase = false)
++        "H1" -> applyHeadingLevel(value, 1)
++        "H2" -> applyHeadingLevel(value, 2)
++        "H3" -> applyHeadingLevel(value, 3)
++        "H4" -> applyHeadingLevel(value, 4)
++        "H5" -> applyHeadingLevel(value, 5)
++        else -> value
++    }
++}
++
++private fun insertDirective(value: TextFieldValue, directive: String): TextFieldValue {
++    val selection = value.selection
++    val start = selection.start.coerceIn(0, value.text.length)
++    val end = selection.end.coerceIn(0, value.text.length)
++    val builder = StringBuilder(value.text)
++    builder.replace(start, end, directive)
++    val newCursor = start + directive.length
++    val updatedText = builder.toString()
++    return value.copy(text = updatedText, selection = TextRange(newCursor))
++}
++
++private fun surroundSelectionWith(value: TextFieldValue, marker: String): TextFieldValue {
++    val selection = value.selection
++    val start = selection.start.coerceIn(0, value.text.length)
++    val end = selection.end.coerceIn(0, value.text.length)
++    val builder = StringBuilder(value.text)
++    return if (selection.collapsed) {
++        val insertion = marker + marker
++        builder.insert(start, insertion)
++        val cursor = start + marker.length
++        value.copy(text = builder.toString(), selection = TextRange(cursor))
++    } else {
++        builder.insert(end, marker)
++        builder.insert(start, marker)
++        val newStart = start + marker.length
++        val newEnd = end + marker.length
++        value.copy(text = builder.toString(), selection = TextRange(newStart, newEnd))
++    }
++}
++
++private data class LineRange(val start: Int, val endExclusive: Int)
++
++private data class LineChange(
++    val newLine: String,
++    val oldPrefixLength: Int,
++    val newPrefixLength: Int
++)
++
++private fun applyHeadingLevel(value: TextFieldValue, level: Int): TextFieldValue {
++    val prefix = "#".repeat(level) + " "
++    return applyLineChanges(value) { oldLine ->
++        var index = 0
++        while (index < oldLine.length && (oldLine[index] == ' ' || oldLine[index] == '\t')) {
++            index++
++        }
++        var hashesIndex = index
++        while (hashesIndex < oldLine.length && oldLine[hashesIndex] == '#') {
++            hashesIndex++
++        }
++        var spaceIndex = hashesIndex
++        while (spaceIndex < oldLine.length && oldLine[spaceIndex] == ' ') {
++            spaceIndex++
++        }
++        val contentStart = spaceIndex
++        val content = oldLine.substring(contentStart)
++        val newLine = prefix + content
++        val oldPrefixLength = contentStart
++        val newPrefixLength = prefix.length
++        if (newLine == oldLine && oldPrefixLength == newPrefixLength) {
++            null
++        } else {
++            LineChange(newLine, oldPrefixLength, newPrefixLength)
++        }
++    }
++}
++
++private fun applyBulletToggle(value: TextFieldValue): TextFieldValue {
++    return applyLineChanges(value) { oldLine ->
++        var index = 0
++        while (index < oldLine.length && (oldLine[index] == ' ' || oldLine[index] == '\t')) {
++            index++
++        }
++        val indent = index
++        val trimmed = oldLine.substring(indent)
++        return@applyLineChanges if (trimmed.startsWith("- ")) {
++            val content = trimmed.removePrefix("- ")
++            val newLine = oldLine.substring(0, indent) + content
++            LineChange(newLine, indent + 2, indent)
++        } else {
++            val newLine = oldLine.substring(0, indent) + "- " + trimmed
++            LineChange(newLine, indent, indent + 2)
++        }
++    }
++}
++
++private const val INDENT_STEP = 2
++
++private fun applyIndentChange(value: TextFieldValue, increase: Boolean): TextFieldValue {
++    return applyLineChanges(value) { oldLine ->
++        var index = 0
++        while (index < oldLine.length && (oldLine[index] == ' ' || oldLine[index] == '\t')) {
++            index++
++        }
++        val indent = index
++        val trimmed = oldLine.substring(indent)
++        if (!trimmed.startsWith("- ")) {
++            return@applyLineChanges null
++        }
++        return@applyLineChanges if (increase) {
++            val newLine = " ".repeat(INDENT_STEP) + oldLine
++            LineChange(newLine, indent + 2, indent + INDENT_STEP + 2)
++        } else {
++            if (indent == 0) {
++                null
++            } else {
++                val removal = INDENT_STEP.coerceAtMost(indent)
++                val newIndent = indent - removal
++                val newLine = oldLine.substring(removal)
++                LineChange(newLine, indent + 2, newIndent + 2)
 +            }
 +        }
++    }
++}
 +
-         // 2) Build transformed text and original -> transformed offset map
-         val originalToTransformed = IntArray(n + 1)
-         val builder = AnnotatedString.Builder()
-         var destIndex = 0
- 
-         for (i in 0 until n) {
-             originalToTransformed[i] = destIndex
-             if (!hide[i]) {
-+                if (bulletInsertions[i] == true) {
-+                    builder.append(BULLET_CHARACTER)
-+                    builder.append(' ')
-+                    destIndex += 2
-+                }
-                 builder.append(src[i])
-                 destIndex++
-             }
-         }
-         originalToTransformed[n] = destIndex
-         val destLen = destIndex
- 
-         // 3) Add styles (mapped indices)
-         parsedBlocks.forEachIndexed { idx, parsed ->
-             val block = parsed.block
-             val contentRange = parsed.contentRange
- 
-             if (contentRange != null && contentRange.first <= contentRange.last) {
-                 val start = originalToTransformed[contentRange.first]
-                 val end = originalToTransformed[contentRange.last + 1]
-                 if (start < end) {
-                     val baseStyle = spanStyleFor(block.style, typography, linkColor)
-                     if (baseStyle != null) builder.addStyle(baseStyle, start, end)
- 
-                     val inlineStyle = SpanStyle(
-                         fontWeight = if (block.bold) FontWeight.Bold else null,
-                         fontStyle = if (block.italic) FontStyle.Italic else null,
-                     )
-                     if (inlineStyle != SpanStyle()) builder.addStyle(inlineStyle, start, end)
- 
-                     val paragraphDirection = when (block.direction) {
-                         TextDirection.LTR -> ComposeTextDirection.Ltr
-                         TextDirection.RTL -> ComposeTextDirection.Rtl
-                         TextDirection.NULL -> null
-                     }
-                     if (paragraphDirection != null) {
-                         builder.addStyle(
-                             ParagraphStyle(textDirection = paragraphDirection),
-                             start,
-                             end,
-                         )
-                     }
- 
-                     if (block.style == TextStyle.LIST_ITEM) {
-                         // Match compact list paragraph here too
-                         builder.addStyle(
-                             ParagraphStyle(
-                                 textIndent = TextIndent(
--                                    firstLine = 16.sp,
-+                                    firstLine = 0.sp,
-                                     restLine = 16.sp,
-                                 ),
-                                 lineHeight = 18.sp,
-                                 lineHeightStyle = LineHeightStyle(
-                                     alignment = LineHeightStyle.Alignment.Proportional,
-                                     trim = LineHeightStyle.Trim.Both
-                                 )
-                             ),
-                             start,
-                             end,
-                         )
-                     }
-                 }
-             }
- 
-             // Markers: only ACTIVE block markers remain in transformed text
-             if (idx == activeBlockIndex) {
-                 parsed.markers.forEach { range ->
-                     val s0 = range.first.coerceAtLeast(0)
-                     val e0 = (range.last + 1).coerceAtMost(n)
-                     val start = originalToTransformed[s0]
-                     val end = originalToTransformed[e0]
-                     if (start < end) {
-                         builder.addStyle(
-                             SpanStyle(color = activeMarkerColor),
++private fun applyLineChanges(
++    value: TextFieldValue,
++    transform: (String) -> LineChange?
++): TextFieldValue {
++    val text = value.text
++    val ranges = selectedLineRanges(text, value.selection)
++    if (ranges.isEmpty()) return value
++    val builder = StringBuilder(text)
++    var selectionStart = value.selection.start
++    var selectionEnd = value.selection.end
++    var delta = 0
++    var changed = false
++    for (range in ranges) {
++        val startInBuilder = range.start + delta
++        val endInBuilder = range.endExclusive + delta
++        val oldLine = builder.substring(startInBuilder, endInBuilder)
++        val change = transform(oldLine) ?: continue
++        changed = true
++        builder.replace(startInBuilder, endInBuilder, change.newLine)
++        val lineDelta = change.newLine.length - oldLine.length
++        selectionStart = adjustSelectionIndex(
++            selectionStart,
++            startInBuilder,
++            endInBuilder,
++            oldLine,
++            change,
++            lineDelta
++        )
++        selectionEnd = adjustSelectionIndex(
++            selectionEnd,
++            startInBuilder,
++            endInBuilder,
++            oldLine,
++            change,
++            lineDelta
++        )
++        delta += lineDelta
++    }
++    if (!changed) return value
++    val updatedText = builder.toString()
++    val newSelectionStart = selectionStart.coerceIn(0, updatedText.length)
++    val newSelectionEnd = selectionEnd.coerceIn(0, updatedText.length)
++    return value.copy(text = updatedText, selection = TextRange(newSelectionStart, newSelectionEnd))
++}
++
++private fun adjustSelectionIndex(
++    index: Int,
++    lineStart: Int,
++    lineEnd: Int,
++    oldLine: String,
++    change: LineChange,
++    lineDelta: Int
++): Int {
++    if (index < lineStart) return index
++    if (index >= lineEnd) return index + lineDelta
++    val offset = index - lineStart
++    val prefixLength = change.oldPrefixLength.coerceAtMost(oldLine.length)
++    val contentOffset = (offset - prefixLength).coerceAtLeast(0)
++    val newIndex = lineStart + change.newPrefixLength + contentOffset
++    val maxIndex = lineStart + change.newLine.length
++    return newIndex.coerceAtMost(maxIndex)
++}
++
++private fun selectedLineRanges(text: String, selection: TextRange): List<LineRange> {
++    if (text.isEmpty()) {
++        return listOf(LineRange(0, 0))
++    }
++    val length = text.length
++    val start = selection.start.coerceIn(0, length)
++    val end = selection.end.coerceIn(0, length)
++    val minPos = minOf(start, end)
++    val maxPos = maxOf(start, end)
++    var lineStart = if (minPos == 0) 0 else {
++        val prevNewline = text.lastIndexOf('\n', minPos - 1)
++        if (prevNewline == -1) 0 else prevNewline + 1
++    }
++    val ranges = mutableListOf<LineRange>()
++    while (true) {
++        val newlineIndex = text.indexOf('\n', lineStart)
++        val lineEnd = if (newlineIndex == -1) length else newlineIndex
++        ranges += LineRange(lineStart, lineEnd)
++        if (lineEnd >= maxPos || lineEnd == length) {
++            break
++        }
++        lineStart = lineEnd + 1
++        if (lineStart > length) {
++            ranges += LineRange(length, length)
++            break
++        }
++    }
++    return ranges
++}
++
+ private fun writingToolsDemo(): List<ToolItem> = listOf(
+     ToolItem("ltr", R.drawable.rounded_format_textdirection_l_to_r_24, ""),
+     ToolItem("rtl", R.drawable.rounded_format_textdirection_r_to_l_24, ""),
+     ToolItem("bold", R.drawable.rounded_format_bold_24,        ""),
+     ToolItem("italic", R.drawable.rounded_format_italic_24,      ""),
+     ToolItem("heading",        R.drawable.tag_24px,          ""),
+     ToolItem("bullet",    R.drawable.rounded_format_list_bulleted_24, ""),
+     ToolItem("indent-inc",    R.drawable.format_indent_increase_24px, ""),
+     ToolItem("indent-dec",    R.drawable.format_indent_decrease_24px, ""),
+     ToolItem("H1",    R.drawable.format_h1_24px, ""),
+     ToolItem("H2",    R.drawable.format_h2_24px, ""),
+     ToolItem("H3",    R.drawable.format_h3_24px, ""),
+     ToolItem("H4",    R.drawable.format_h4_24px, ""),
+     ToolItem("H5",    R.drawable.format_h5_24px, ""),
+     ToolItem("delete",    R.drawable.delete_24px, "", color = Color(0xFfCf0000)),
+ //    ToolItem("code",      R.drawable.rounded_checkbook_24,        ""), TODO
+ //    ToolItem("quote",     R.drawable.rounded_checkbook_24,       ""), TODO
+ )
  
 EOF
 )

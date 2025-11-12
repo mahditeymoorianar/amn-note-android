@@ -37,7 +37,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBackIos
@@ -46,7 +45,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material.icons.rounded.ArrowBackIosNew
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -54,8 +53,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -76,7 +73,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -186,6 +182,7 @@ private fun NoteEditorScreen(
 
     // controls showing the bottom sheet
     var showDiscardSheet by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
     // 1) intercept back press HERE
     val handleBack: () -> Unit = {
@@ -427,23 +424,6 @@ private fun NoteEditorScreen(
                     )
                 )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-
-                    if (state.noteId != 0L) {
-                        OutlinedButton(
-                            onClick = onDeleteClick,
-                            enabled = !state.isLoading,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(text = stringResource(id = R.string.delete))
-                        }
-                    }
-                }
-
                 if (!state.isLoading && state.noteId == 0L) {
                     Text(
                         text = stringResource(id = R.string.note_hint_text),
@@ -460,12 +440,21 @@ private fun NoteEditorScreen(
             // NEW: The floating, rounded, horizontally scrollable panel
             WritingToolsPanel(
                 visible = !state.readingMode,
-                tools = writingToolsDemo(),               // supply your tools here
+                tools = writingTools(state.noteId != 0L),               // supply your tools here
                 onToolClick = { tool ->
-                    val updatedValue = applyToolAction(tool.id, contentField)
-                    if (updatedValue != contentField) {
-                        contentField = updatedValue
-                        onContentChange(updatedValue.text)
+                    if (state.isLoading) return@WritingToolsPanel
+                    when (tool.id) {
+                        "delete" -> if (state.noteId != 0L) {
+                            showDeleteConfirm = true
+                        }
+
+                        else -> {
+                            val updatedValue = applyToolAction(tool.id, contentField)
+                            if (updatedValue != contentField) {
+                                contentField = updatedValue
+                                onContentChange(updatedValue.text)
+                            }
+                        }
                     }
                 },
                 bottomMargin = 8.dp,
@@ -474,6 +463,30 @@ private fun NoteEditorScreen(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)// required for alignment inside Box
             )
+
+            if (showDeleteConfirm) {
+                AlertDialog(
+                    onDismissRequest = { showDeleteConfirm = false },
+                    title = { Text(stringResource(id = R.string.delete_note_title)) },
+                    text = { Text(stringResource(id = R.string.delete_note_message)) },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                showDeleteConfirm = false
+                                onDeleteClick()
+                            },
+                            enabled = !state.isLoading
+                        ) {
+                            Text(text = stringResource(id = R.string.delete))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDeleteConfirm = false }) {
+                            Text(text = stringResource(id = R.string.cancel))
+                        }
+                    }
+                )
+            }
         }
     }
 }
@@ -650,20 +663,37 @@ private fun insertDirective(value: TextFieldValue, directive: String): TextField
 
 private fun surroundSelectionWith(value: TextFieldValue, marker: String): TextFieldValue {
     val selection = value.selection
-    val start = selection.start.coerceIn(0, value.text.length)
-    val end = selection.end.coerceIn(0, value.text.length)
-    val builder = StringBuilder(value.text)
-    return if (selection.collapsed) {
+    val text = value.text
+    val start = selection.start.coerceIn(0, text.length)
+    val end = selection.end.coerceIn(0, text.length)
+
+    if (start == end) {
         val insertion = marker + marker
+        val builder = StringBuilder(text)
         builder.insert(start, insertion)
         val cursor = start + marker.length
-        value.copy(text = builder.toString(), selection = TextRange(cursor))
+        val updatedText = builder.toString()
+        return value.copy(text = updatedText, selection = TextRange(cursor, cursor))
+    }
+
+    val before = text.substring(0, start)
+    val middle = text.substring(start, end)
+    val after = text.substring(end)
+    val hasWrappingPrefix = before.endsWith(marker)
+    val hasWrappingSuffix = after.startsWith(marker)
+
+    return if (hasWrappingPrefix && hasWrappingSuffix) {
+        val newBefore = before.dropLast(marker.length)
+        val newAfter = after.drop(marker.length)
+        val updatedText = newBefore + middle + newAfter
+        val newStart = start - marker.length
+        val newEnd = end - marker.length
+        value.copy(text = updatedText, selection = TextRange(newStart, newEnd))
     } else {
-        builder.insert(end, marker)
-        builder.insert(start, marker)
+        val updatedText = before + marker + middle + marker + after
         val newStart = start + marker.length
         val newEnd = end + marker.length
-        value.copy(text = builder.toString(), selection = TextRange(newStart, newEnd))
+        value.copy(text = updatedText, selection = TextRange(newStart, newEnd))
     }
 }
 
@@ -844,21 +874,26 @@ private fun selectedLineRanges(text: String, selection: TextRange): List<LineRan
     return ranges
 }
 
-private fun writingToolsDemo(): List<ToolItem> = listOf(
-    ToolItem("ltr", R.drawable.rounded_format_textdirection_l_to_r_24, ""),
-    ToolItem("rtl", R.drawable.rounded_format_textdirection_r_to_l_24, ""),
-    ToolItem("bold", R.drawable.rounded_format_bold_24,        ""),
-    ToolItem("italic", R.drawable.rounded_format_italic_24,      ""),
-    ToolItem("heading",        R.drawable.tag_24px,          ""),
-    ToolItem("bullet",    R.drawable.rounded_format_list_bulleted_24, ""),
-    ToolItem("indent-inc",    R.drawable.format_indent_increase_24px, ""),
-    ToolItem("indent-dec",    R.drawable.format_indent_decrease_24px, ""),
-    ToolItem("H1",    R.drawable.format_h1_24px, ""),
-    ToolItem("H2",    R.drawable.format_h2_24px, ""),
-    ToolItem("H3",    R.drawable.format_h3_24px, ""),
-    ToolItem("H4",    R.drawable.format_h4_24px, ""),
-    ToolItem("H5",    R.drawable.format_h5_24px, ""),
-    ToolItem("delete",    R.drawable.delete_24px, "", color = Color(0xFfCf0000)),
-//    ToolItem("code",      R.drawable.rounded_checkbook_24,        ""), TODO
-//    ToolItem("quote",     R.drawable.rounded_checkbook_24,       ""), TODO
-)
+private fun writingTools(canDelete: Boolean): List<ToolItem> {
+    val items = mutableListOf(
+        ToolItem("ltr", R.drawable.rounded_format_textdirection_l_to_r_24, ""),
+        ToolItem("rtl", R.drawable.rounded_format_textdirection_r_to_l_24, ""),
+        ToolItem("bold", R.drawable.rounded_format_bold_24, ""),
+        ToolItem("italic", R.drawable.rounded_format_italic_24, ""),
+        ToolItem("heading", R.drawable.tag_24px, ""),
+        ToolItem("bullet", R.drawable.rounded_format_list_bulleted_24, ""),
+        ToolItem("indent-inc", R.drawable.format_indent_increase_24px, ""),
+        ToolItem("indent-dec", R.drawable.format_indent_decrease_24px, ""),
+        ToolItem("H1", R.drawable.format_h1_24px, ""),
+        ToolItem("H2", R.drawable.format_h2_24px, ""),
+        ToolItem("H3", R.drawable.format_h3_24px, ""),
+        ToolItem("H4", R.drawable.format_h4_24px, ""),
+        ToolItem("H5", R.drawable.format_h5_24px, ""),
+    )
+    if (canDelete) {
+        items += ToolItem("delete", R.drawable.delete_24px, "", color = Color(0xFfCf0000))
+    }
+    //    ToolItem("code",      R.drawable.rounded_checkbook_24,        ""), TODO
+    //    ToolItem("quote",     R.drawable.rounded_checkbook_24,       ""), TODO
+    return items
+}

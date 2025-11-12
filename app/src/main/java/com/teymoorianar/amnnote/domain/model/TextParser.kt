@@ -140,11 +140,18 @@ object TextParser {
                     continue
                 }
 
-                if (k < length && input[k] == '-' && k + 1 < length && input[k + 1] == ' ') {
+                var listMarkerIndex = k
+                while (listMarkerIndex < length && (input[listMarkerIndex] == ' ' || input[listMarkerIndex] == '\t')) {
+                    listMarkerIndex++
+                }
+
+                if (listMarkerIndex < length && input[listMarkerIndex] == '-' &&
+                    listMarkerIndex + 1 < length && input[listMarkerIndex + 1] == ' '
+                ) {
                     lineStyle = TextStyle.LIST_ITEM
                     currentStyle = lineStyle
-                    pendingOpeningMarkers.add(IntRange(k, k + 1))
-                    i = k + 2
+                    pendingOpeningMarkers.add(IntRange(listMarkerIndex, listMarkerIndex + 1))
+                    i = listMarkerIndex + 2
                     isStartOfLine = false
                     continue
                 }

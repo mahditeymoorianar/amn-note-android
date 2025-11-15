@@ -14,7 +14,7 @@ room = "2.8.3"
 ksp = "2.2.20-2.0.4"
 javapoet = "1.13.0"
 dataStore = "1.1.7"
-composeReorderable = "3.0.0"
+composeReorderable = "0.9.6"
 material3 = "1.4.0"
 foundationLayout = "1.9.4"
 appcompat = "1.7.0"
@@ -46,7 +46,7 @@ androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = 
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
 javapoet = { group = "com.squareup", name = "javapoet", version.ref = "javapoet" }
-compose-reorderable = { module = "org.burnoutcrew.composereorderable:reorderable", version.ref = "composeReorderable" }
+compose-reorderable = { module = "org.burnoutcrew.composereorderable:composereorderable", version.ref = "composeReorderable" }
 material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
 androidx-foundation-layout = { group = "androidx.compose.foundation", name = "foundation-layout", version.ref = "foundationLayout" }
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "dataStore" }

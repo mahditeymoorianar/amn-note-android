@@ -1,5 +1,6 @@
 package com.teymoorianar.amnnote.ui.theme
 
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.teymoorianar.amnnote.domain.preferences.ThemePreference
@@ -8,6 +9,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -26,6 +28,18 @@ class ThemeViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = ThemePreference.DARK
         )
+
+    init {
+        viewModelScope.launch {
+            theme.collectLatest { preference ->
+                val nightMode = when (preference) {
+                    ThemePreference.DARK -> AppCompatDelegate.MODE_NIGHT_YES
+                    ThemePreference.LIGHT -> AppCompatDelegate.MODE_NIGHT_NO
+                }
+                AppCompatDelegate.setDefaultNightMode(nightMode)
+            }
+        }
+    }
 
     /** Persists a new [preference] when the user selects a different theme. */
     fun onThemeSelected(preference: ThemePreference) {

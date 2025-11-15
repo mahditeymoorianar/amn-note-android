@@ -64,7 +64,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -91,20 +90,24 @@ import androidx.compose.ui.unit.sp
 import com.teymoorianar.amnnote.R
 import com.teymoorianar.amnnote.ui.components.FormattedTextField
 import com.teymoorianar.amnnote.ui.theme.AmnNoteTheme
+import com.teymoorianar.amnnote.ui.theme.ThemeViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.compose.material3.MaterialTheme as Material3Theme
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @AndroidEntryPoint
 class NoteActivity : ComponentActivity() {
 
     private val viewModel: NoteEditorViewModel by viewModels()
+    private val themeViewModel: ThemeViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            AmnNoteTheme {
-                val uiState by viewModel.state.collectAsState()
+            val themePreference by themeViewModel.theme.collectAsStateWithLifecycle()
+            AmnNoteTheme(darkTheme = themePreference.isDarkMode) {
+                val uiState by viewModel.state.collectAsStateWithLifecycle()
                 val snackbarHostState = remember { SnackbarHostState() }
                 val context = LocalContext.current
                 val activity = context as? Activity

@@ -10,7 +10,6 @@ import androidx.compose.material.FabPosition
 import androidx.compose.material.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.background
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.teymoorianar.amnnote.domain.model.Note
@@ -36,8 +35,7 @@ fun MainScreen(
     val contentColor = Material3Theme.colorScheme.onBackground
     Scaffold(
         modifier = modifier
-            .fillMaxSize()
-            .background(backgroundColor),
+            .fillMaxSize(),
         contentWindowInsets = WindowInsets.systemBars,
         backgroundColor = backgroundColor,
         contentColor = contentColor,

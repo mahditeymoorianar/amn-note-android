@@ -75,8 +75,6 @@ dependencies {
     implementation(libs.compose.reorderable)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.appcompat)
-    implementation(libs.androidx.fragment.ktx)
-    implementation(libs.androidx.preference.ktx)
     implementation(libs.google.material)
 
     // Room dependencies (comment out if not using yet)

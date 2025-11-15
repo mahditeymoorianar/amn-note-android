@@ -462,8 +462,11 @@ private fun NoteEditorScreen(
                 visible = !state.readingMode,
                 tools = writingToolsDemo(),               // supply your tools here
                 onToolClick = { tool ->
-                    // TODO: perform your action (insert markdown, toggle style, etc.)
-                    // Example: onContentChange(applyTool(state.content, tool))
+                    val updatedValue = applyToolAction(tool.id, contentField)
+                    if (updatedValue != contentField) {
+                        contentField = updatedValue
+                        onContentChange(updatedValue.text)
+                    }
                 },
                 bottomMargin = 8.dp,
                 cornerRadius = 20.dp,
@@ -614,6 +617,231 @@ private fun handleListAutoFormatting(
         val newCursor = cursor + insertion.length
         newValue.copy(text = updatedText, selection = TextRange(newCursor))
     }
+}
+
+private fun applyToolAction(toolId: String, value: TextFieldValue): TextFieldValue {
+    return when (toolId) {
+        "ltr" -> insertDirective(value, "\\ltr")
+        "rtl" -> insertDirective(value, "\\rtl")
+        "bold" -> surroundSelectionWith(value, "**")
+        "italic" -> surroundSelectionWith(value, "*")
+        "bullet" -> applyBulletToggle(value)
+        "indent-inc" -> applyIndentChange(value, increase = true)
+        "indent-dec" -> applyIndentChange(value, increase = false)
+        "H1" -> applyHeadingLevel(value, 1)
+        "H2" -> applyHeadingLevel(value, 2)
+        "H3" -> applyHeadingLevel(value, 3)
+        "H4" -> applyHeadingLevel(value, 4)
+        "H5" -> applyHeadingLevel(value, 5)
+        else -> value
+    }
+}
+
+private fun insertDirective(value: TextFieldValue, directive: String): TextFieldValue {
+    val selection = value.selection
+    val start = selection.start.coerceIn(0, value.text.length)
+    val end = selection.end.coerceIn(0, value.text.length)
+    val builder = StringBuilder(value.text)
+    builder.replace(start, end, directive)
+    val newCursor = start + directive.length
+    val updatedText = builder.toString()
+    return value.copy(text = updatedText, selection = TextRange(newCursor))
+}
+
+private fun surroundSelectionWith(value: TextFieldValue, marker: String): TextFieldValue {
+    val selection = value.selection
+    val start = selection.start.coerceIn(0, value.text.length)
+    val end = selection.end.coerceIn(0, value.text.length)
+    val builder = StringBuilder(value.text)
+    return if (selection.collapsed) {
+        val insertion = marker + marker
+        builder.insert(start, insertion)
+        val cursor = start + marker.length
+        value.copy(text = builder.toString(), selection = TextRange(cursor))
+    } else {
+        builder.insert(end, marker)
+        builder.insert(start, marker)
+        val newStart = start + marker.length
+        val newEnd = end + marker.length
+        value.copy(text = builder.toString(), selection = TextRange(newStart, newEnd))
+    }
+}
+
+private data class LineRange(val start: Int, val endExclusive: Int)
+
+private data class LineChange(
+    val newLine: String,
+    val oldPrefixLength: Int,
+    val newPrefixLength: Int
+)
+
+private fun applyHeadingLevel(value: TextFieldValue, level: Int): TextFieldValue {
+    val prefix = "#".repeat(level) + " "
+    return applyLineChanges(value) { oldLine ->
+        var index = 0
+        while (index < oldLine.length && (oldLine[index] == ' ' || oldLine[index] == '\t')) {
+            index++
+        }
+        var hashesIndex = index
+        while (hashesIndex < oldLine.length && oldLine[hashesIndex] == '#') {
+            hashesIndex++
+        }
+        var spaceIndex = hashesIndex
+        while (spaceIndex < oldLine.length && oldLine[spaceIndex] == ' ') {
+            spaceIndex++
+        }
+        val contentStart = spaceIndex
+        val content = oldLine.substring(contentStart)
+        val newLine = prefix + content
+        val oldPrefixLength = contentStart
+        val newPrefixLength = prefix.length
+        if (newLine == oldLine && oldPrefixLength == newPrefixLength) {
+            null
+        } else {
+            LineChange(newLine, oldPrefixLength, newPrefixLength)
+        }
+    }
+}
+
+private fun applyBulletToggle(value: TextFieldValue): TextFieldValue {
+    return applyLineChanges(value) { oldLine ->
+        var index = 0
+        while (index < oldLine.length && (oldLine[index] == ' ' || oldLine[index] == '\t')) {
+            index++
+        }
+        val indent = index
+        val trimmed = oldLine.substring(indent)
+        return@applyLineChanges if (trimmed.startsWith("- ")) {
+            val content = trimmed.removePrefix("- ")
+            val newLine = oldLine.substring(0, indent) + content
+            LineChange(newLine, indent + 2, indent)
+        } else {
+            val newLine = oldLine.substring(0, indent) + "- " + trimmed
+            LineChange(newLine, indent, indent + 2)
+        }
+    }
+}
+
+private const val INDENT_STEP = 2
+
+private fun applyIndentChange(value: TextFieldValue, increase: Boolean): TextFieldValue {
+    return applyLineChanges(value) { oldLine ->
+        var index = 0
+        while (index < oldLine.length && (oldLine[index] == ' ' || oldLine[index] == '\t')) {
+            index++
+        }
+        val indent = index
+        val trimmed = oldLine.substring(indent)
+        if (!trimmed.startsWith("- ")) {
+            return@applyLineChanges null
+        }
+        return@applyLineChanges if (increase) {
+            val newLine = " ".repeat(INDENT_STEP) + oldLine
+            LineChange(newLine, indent + 2, indent + INDENT_STEP + 2)
+        } else {
+            if (indent == 0) {
+                null
+            } else {
+                val removal = INDENT_STEP.coerceAtMost(indent)
+                val newIndent = indent - removal
+                val newLine = oldLine.substring(removal)
+                LineChange(newLine, indent + 2, newIndent + 2)
+            }
+        }
+    }
+}
+
+private fun applyLineChanges(
+    value: TextFieldValue,
+    transform: (String) -> LineChange?
+): TextFieldValue {
+    val text = value.text
+    val ranges = selectedLineRanges(text, value.selection)
+    if (ranges.isEmpty()) return value
+    val builder = StringBuilder(text)
+    var selectionStart = value.selection.start
+    var selectionEnd = value.selection.end
+    var delta = 0
+    var changed = false
+    for (range in ranges) {
+        val startInBuilder = range.start + delta
+        val endInBuilder = range.endExclusive + delta
+        val oldLine = builder.substring(startInBuilder, endInBuilder)
+        val change = transform(oldLine) ?: continue
+        changed = true
+        builder.replace(startInBuilder, endInBuilder, change.newLine)
+        val lineDelta = change.newLine.length - oldLine.length
+        selectionStart = adjustSelectionIndex(
+            selectionStart,
+            startInBuilder,
+            endInBuilder,
+            oldLine,
+            change,
+            lineDelta
+        )
+        selectionEnd = adjustSelectionIndex(
+            selectionEnd,
+            startInBuilder,
+            endInBuilder,
+            oldLine,
+            change,
+            lineDelta
+        )
+        delta += lineDelta
+    }
+    if (!changed) return value
+    val updatedText = builder.toString()
+    val newSelectionStart = selectionStart.coerceIn(0, updatedText.length)
+    val newSelectionEnd = selectionEnd.coerceIn(0, updatedText.length)
+    return value.copy(text = updatedText, selection = TextRange(newSelectionStart, newSelectionEnd))
+}
+
+private fun adjustSelectionIndex(
+    index: Int,
+    lineStart: Int,
+    lineEnd: Int,
+    oldLine: String,
+    change: LineChange,
+    lineDelta: Int
+): Int {
+    if (index < lineStart) return index
+    if (index >= lineEnd) return index + lineDelta
+    val offset = index - lineStart
+    val prefixLength = change.oldPrefixLength.coerceAtMost(oldLine.length)
+    val contentOffset = (offset - prefixLength).coerceAtLeast(0)
+    val newIndex = lineStart + change.newPrefixLength + contentOffset
+    val maxIndex = lineStart + change.newLine.length
+    return newIndex.coerceAtMost(maxIndex)
+}
+
+private fun selectedLineRanges(text: String, selection: TextRange): List<LineRange> {
+    if (text.isEmpty()) {
+        return listOf(LineRange(0, 0))
+    }
+    val length = text.length
+    val start = selection.start.coerceIn(0, length)
+    val end = selection.end.coerceIn(0, length)
+    val minPos = minOf(start, end)
+    val maxPos = maxOf(start, end)
+    var lineStart = if (minPos == 0) 0 else {
+        val prevNewline = text.lastIndexOf('\n', minPos - 1)
+        if (prevNewline == -1) 0 else prevNewline + 1
+    }
+    val ranges = mutableListOf<LineRange>()
+    while (true) {
+        val newlineIndex = text.indexOf('\n', lineStart)
+        val lineEnd = if (newlineIndex == -1) length else newlineIndex
+        ranges += LineRange(lineStart, lineEnd)
+        if (lineEnd >= maxPos || lineEnd == length) {
+            break
+        }
+        lineStart = lineEnd + 1
+        if (lineStart > length) {
+            ranges += LineRange(length, length)
+            break
+        }
+    }
+    return ranges
 }
 
 private fun writingToolsDemo(): List<ToolItem> = listOf(

@@ -17,6 +17,9 @@ dataStore = "1.1.7"
 composeReorderable = "3.0.0"
 material3 = "1.4.0"
 foundationLayout = "1.9.4"
+appcompat = "1.7.0"
+lifecycleRuntimeCompose = "2.8.7"
+materialComponents = "1.12.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -47,6 +50,10 @@ compose-reorderable = { module = "sh.calvin.reorderable:reorderable", version.re
 #{ group = "org.burnoutcrew.composereorderable", name = "reorderable", version.ref = "composeReorderable" }
 material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
 androidx-foundation-layout = { group = "androidx.compose.foundation", name = "foundation-layout", version.ref = "foundationLayout" }
+androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "dataStore" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycleRuntimeCompose" }
+google-material = { group = "com.google.android.material", name = "material", version.ref = "materialComponents" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

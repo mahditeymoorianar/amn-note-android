@@ -12,6 +12,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+/**
+ * Coordinates note loading and ordering logic for the main screen.
+ */
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val noteRepository: NoteRepository
@@ -26,12 +29,16 @@ class MainViewModel @Inject constructor(
         refreshNotes()
     }
 
+    /** Retrieves the latest notes from the repository. */
     fun refreshNotes() {
         viewModelScope.launch {
             _notes.value = noteRepository.getNotes()
         }
     }
 
+    /**
+     * Updates the in-memory ordering when the user drags a note from [fromIndex] to [toIndex].
+     */
     fun moveNote(fromIndex: Int, toIndex: Int) {
         _notes.update { current ->
             if (fromIndex !in current.indices || toIndex !in 0..current.size || fromIndex == toIndex) {
@@ -46,6 +53,7 @@ class MainViewModel @Inject constructor(
         }
     }
 
+    /** Persists the latest order if any drag-and-drop interaction completed. */
     fun onDragFinished() {
         if (!reorderDirty) return
         reorderDirty = false

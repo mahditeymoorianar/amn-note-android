@@ -29,6 +29,8 @@ fun MainScreen(
     onAddNote: () -> Unit,
     onNoteClick: (Long) -> Unit,
     onSettingsClick: () -> Unit,
+    onMoveNote: (Int, Int) -> Unit,
+    onReorderFinished: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val backgroundColor = Material3Theme.colorScheme.background
@@ -48,6 +50,8 @@ fun MainScreen(
         NotesList(
             notes = notes,
             onNoteClick = onNoteClick,
+            onMoveNote = onMoveNote,
+            onReorderFinished = onReorderFinished,
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier
@@ -69,7 +73,9 @@ private fun MainScreenPreview() {
             notes = sampleNotes,
             onAddNote = {},
             onNoteClick = {},
-            onSettingsClick = {}
+            onSettingsClick = {},
+            onMoveNote = { _, _ -> },
+            onReorderFinished = {}
         )
     }
 }

@@ -34,7 +34,9 @@ class MainActivity : ComponentActivity() {
                     notes = notes,
                     onAddNote = { startActivity(NoteActivity.newIntent(this)) },
                     onNoteClick = { id -> startActivity(NoteActivity.newIntent(this, id)) },
-                    onSettingsClick = { startActivity(SettingsActivity.newIntent(this)) }
+                    onSettingsClick = { startActivity(SettingsActivity.newIntent(this)) },
+                    onMoveNote = viewModel::moveNote,
+                    onReorderFinished = viewModel::onDragFinished
                 )
             }
         }
